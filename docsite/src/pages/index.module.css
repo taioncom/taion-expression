@@ -1,0 +1,75 @@
+.heroBanner {
+  padding: 4rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 42%, #0f3550 0%, #08233b 55%, #03101f 100%);
+  color: #ffffff;
+}
+
+.heroLogo {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 1rem;
+}
+
+.heroBanner :global(.hero__title),
+.heroBanner :global(.hero__subtitle) {
+  color: #ffffff;
+}
+
+.heroBanner a:not(:global(.button)) {
+  color: #a5b4fc;
+}
+
+.heroBanner a:not(:global(.button)):hover {
+  color: #c7d2fe;
+}
+
+.heroBanner :global(.button--outline) {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.heroBanner :global(.button--outline):hover {
+  color: #ffffff;
+  border-color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    padding: 2rem;
+  }
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.expressions {
+  padding: 2rem 0;
+}
+
+.expressionTable {
+  width: 100%;
+  font-size: 0.95rem;
+}
+
+.expressionTable code {
+  background: none;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.expressionTable td:last-child {
+  white-space: nowrap;
+  color: var(--ifm-color-primary);
+}
+
+.example {
+  padding: 2rem 0;
+}

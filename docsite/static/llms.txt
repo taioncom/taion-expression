@@ -1,0 +1,17 @@
+# taion-expression
+
+> A safe, sandboxed expression evaluation library for JavaScript/TypeScript. Evaluates user-provided expressions against a context object with configurable security limits.
+
+## Documentation
+
+- Full docs: https://taioncom.github.io/taion-expression/docs/getting-started
+- AI agent reference: https://taioncom.github.io/taion-expression/docs/llms
+- API reference: https://taioncom.github.io/taion-expression/docs/api-reference
+- Security: https://taioncom.github.io/taion-expression/docs/security/overview
+- GitHub: https://github.com/taioncom/taion-expression
+- npm: https://www.npmjs.com/package/@taioncom/taion-expression
+
+## llms-full.txt
+
+For comprehensive library documentation optimized for AI coding agents, see:
+https://taioncom.github.io/taion-expression/docs/llms

@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- background -->
+    <!--
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#0f3550" />
+      <stop offset="55%" stop-color="#08233b" />
+      <stop offset="100%" stop-color="#03101f" />
+    </radialGradient>
+    -->
+
+    <linearGradient id="neon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a7ffff" />
+      <stop offset="50%" stop-color="#6ef3ff" />
+      <stop offset="100%" stop-color="#42dfff" />
+    </linearGradient>
+
+    <filter id="outerGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10" result="blur1" />
+      <feColorMatrix in="blur1" type="matrix"
+        values="0 0 0 0 0.30
+                0 0 0 0 0.95
+                0 0 0 0 1.00
+                0 0 0 1 0"
+        result="glow1" />
+      <feGaussianBlur stdDeviation="24" result="blur2" />
+      <feColorMatrix in="blur2" type="matrix"
+        values="0 0 0 0 0.15
+                0 0 0 0 0.70
+                0 0 0 0 0.95
+                0 0 0 0.55 0"
+        result="glow2" />
+      <feMerge>
+        <feMergeNode in="glow2" />
+        <feMergeNode in="glow1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="textGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)" />
+
+  <g filter="url(#outerGlow)" fill="none" stroke="url(#neon)" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path
+      d="M256 52
+             C206 78, 150 74, 92 92
+             L84 210
+             C84 318, 140 386, 256 454
+             C372 386, 428 318, 428 210
+             L420 92
+             C362 74, 306 78, 256 52Z"
+      stroke-width="8" />
+
+    <path
+      d="M256 82
+             C214 102, 166 100, 116 114
+             L110 214
+             C110 304, 158 364, 256 422
+             C354 364, 402 304, 402 214
+             L396 114
+             C346 100, 298 102, 256 82Z"
+      stroke-width="6" opacity="0.95" />
+  </g>
+
+  <g fill="#f1ffff" filter="url(#textGlow)">
+    <text x="208" y="270"
+      font-size="146"
+      font-style="italic"
+      font-family="Georgia, 'Times New Roman', serif">f</text>
+    <text x="250" y="280"
+      font-size="70"
+      font-style="italic"
+      font-family="Georgia, 'Times New Roman', serif">(x)</text>
+  </g>
+</svg>
