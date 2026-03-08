@@ -29,6 +29,7 @@
       }
     }
   },
+  "homepage": "https://taioncom.github.io/taion-expression/",
   "repository": "https://github.com/taioncom/taion-expression",
   "scripts": {
     "build": "run-p build:*",
