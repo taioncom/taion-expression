@@ -493,3 +493,7 @@ This expression language is intentionally limited in functionality to ensure saf
 ## License
 
 MIT
+
+## Trademark Notice
+
+"Taion" is a registered trademark of Taion Oy. The MIT license grants rights to the source code only and does not grant permission to use the "Taion" name, logo, or trademarks. You may not use the "Taion" name in forks, derivative products, services, or marketing materials in any way that implies endorsement by or affiliation with Taion Oy without prior written permission.
