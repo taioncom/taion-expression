@@ -4,7 +4,7 @@
   "description": "A safe, sandboxed expression evaluator for JavaScript/TypeScript with large set of built-in functions",
   "author": "Taion <info@taion.com>",
   "copyright": "Copyright (c) 2026 Taion Oy",
-  "private": true,
+  "private": false,
   "license": "MIT",
   "keywords": [
     "expression",
