@@ -48,7 +48,8 @@
     "cov:lcov": "jest --coverage --coverageReporters=lcov",
     "cov:check": "jest --coverage --coverageThreshold='{\"global\":{\"lines\":95,\"functions\":95,\"branches\":80}}'",
     "prepack": "run-s build test:lint test:prettier test:unit test:smoke",
-    "prepublishOnly": "run-s build test:lint test:prettier test:unit test:smoke"
+    "prepublishOnly": "run-s build test:lint test:prettier test:unit test:smoke",
+    "release": "bash scripts/release.sh"
   },
   "engines": {
     "node": ">=16"
