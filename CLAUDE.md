@@ -16,6 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Use single quotes for strings
 - Keep code immutable using readonly and const
+- Create modular code and keep source files under 500 lines
 - Follow the functional programming style (using plugin:functional/lite)
 - Sort imports alphabetically with newlines between groups
 - Explicit error handling with descriptive error messages
@@ -25,3 +26,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Avoid mutable state
 - All code should be pure functions without side effects
 - Follow the existing naming conventions (camelCase for variables, PascalCase for types)
+
+## Important
+
+- Documentation uses Docusaurus and is in docsite folder
+- Remember to update the documentation and readme when making changes
+- Update also the docsite/docs/llms.md that contains compact reference for the LLMs
