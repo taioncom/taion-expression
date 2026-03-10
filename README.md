@@ -167,26 +167,44 @@ The language includes several safe built-in functions:
 ##### String Functions
 
 - `length(str)`, `contains(str, sub)`, `startsWith(str, prefix)`, `endsWith(str, suffix)`
-- `toLowerCase(str)`, `toUpperCase(str)`, `substring(str, start, end?)`, `trim(str)`
-- `replace(str, search, replacement)` (replaces all occurrences), `split(str, separator)`, `indexOf(str, search)`
+- `toLowerCase(str)`, `toUpperCase(str)`, `substring(str, start, end?)`, `trim(str)`, `trimStart(str)`, `trimEnd(str)`
+- `replace(str, search, replacement)` (replaces all occurrences), `split(str, separator)`, `indexOf(str, search)`, `lastIndexOf(str, search)`
 - `capitalize(str, allWords?)`, `padLeft(value, len, pad?)`, `padRight(value, len, pad?)`
+- `repeat(str, n)`, `charAt(str, index)`, `includes(strOrArray, search)`, `concat(...values)`
 
 ##### Math Functions
 
-- `min(...values)`, `max(...values)` (variadic), `round(num, decimals?)`, `floor(num)`, `ceil(num)`, `abs(num)`
+- **Basic**: `min(...values)`, `max(...values)` (variadic), `round(num, decimals?)`, `floor(num)`, `ceil(num)`, `abs(num)`
+- **Advanced**: `pow(base, exp)`, `sqrt(num)`, `log(num)`, `log10(num)`, `log2(num)`, `sign(num)`, `trunc(num)`, `mod(a, b)`
+- **Interpolation**: `clamp(value, min, max)`, `lerp(a, b, t)`
+- **Constants**: `pi()`, `e()`
+
+##### Trigonometric Functions
+
+- `sin(rad)`, `cos(rad)`, `tan(rad)`, `asin(num)`, `acos(num)`, `atan(num)`, `atan2(y, x)`
 
 ##### Array Functions
 
-- `length(array)`, `sum(array)`, `avg(array)`, `arrayContains(array, value)`
-- `join(array, separator)`, `sort(array)`, `reverse(array)`, `slice(array, start, end?)`
+- **Basic**: `length(array)`, `sum(array)`, `avg(array)`, `arrayContains(array, value)`, `count(array)`
+- **Access**: `first(array)`, `last(array)`, `slice(array, start, end?)`
+- **Transform**: `join(array, separator)`, `sort(array)`, `reverse(array)`, `unique(array)`, `compact(array)`, `flat(array, depth?)`
+- **Generate**: `range(start, end, step?)`
+- **Reshape**: `chunk(array, size)`, `zip(arr1, arr2)`
+
+##### Statistical Functions
+
+- `median(array)`, `stddev(array)`, `variance(array)`, `percentile(array, p)`
 
 ##### Higher-Order Array Functions (require `enableArrowFunctions`)
 
-- `map(array, fn)`, `filter(array, fn)`, `find(array, fn)`, `reduce(array, fn, initial?)`, `every(array, fn)`, `some(array, fn)`
+- **Iterate**: `map(array, fn)`, `filter(array, fn)`, `find(array, fn)`, `findIndex(array, fn)`, `reduce(array, fn, initial?)`, `every(array, fn)`, `some(array, fn)`
+- **Sort/Group**: `sortBy(array, fn)`, `groupBy(array, fn)`, `distinctBy(array, fn)`
+- **Aggregate**: `minBy(array, fn)`, `maxBy(array, fn)`, `sumBy(array, fn)`, `countBy(array, fn)`
 
 ##### Object Functions
 
-- `keys(object)`, `values(object)`
+- `keys(object)`, `values(object)`, `entries(object)`
+- `hasKey(object, key)`, `merge(obj1, obj2)`, `pick(object, ...keys)`, `omit(object, ...keys)`, `fromEntries(entries)`
 
 ##### Type Checking
 
@@ -196,11 +214,15 @@ The language includes several safe built-in functions:
 
 ##### Conversion
 
-- `toString(value)`, `toNumber(value)`
+- `toString(value)`, `toNumber(value)`, `toBoolean(value)`, `toInteger(value)`, `toDate(value)`
+- `toFixed(num, digits)`, `parseInt(str, radix?)`, `parseFloat(str)`
 
 ##### Utility
 
 - `coalesce(...values)`: Returns the first non-null/undefined value
+- `ifElse(condition, thenValue, elseValue)`: Inline conditional
+- `defaultTo(value, fallback)`: Returns fallback if value is null/undefined/NaN
+- `jsonStringify(value)`, `jsonParse(str)`
 
 ##### Random
 
@@ -212,7 +234,7 @@ The language includes several safe built-in functions:
 
 ##### Date Functions
 
-- **Creation**: `now()`, `date(y, m, d, h?, min?, s?, ms?)` (month 1-based), `parseDate(str)`
+- **Creation**: `now()`, `date(y, m, d, h?, min?, s?, ms?)` (month 1-based), `parseDate(str)`, `toDate(value)`
 - **Extraction**: `year(date)`, `month(date)` (1-12), `day(date)`, `hour(date)`, `minute(date)`, `second(date)`, `dayOfWeek(date)` (0=Sun), `timestamp(date)`
 - **Formatting**: `formatDate(date, pattern?)` (tokens: `yyyy`, `yy`, `MM`, `dd`, `HH`, `mm`, `ss`, `SSS`), `toISOString(date)`
 - **Arithmetic**: `dateAdd(date, amount, unit)`, `dateDiff(d1, d2, unit)` (units: years, months, weeks, days, hours, minutes, seconds, milliseconds; months/years use calendar-aware calculation)

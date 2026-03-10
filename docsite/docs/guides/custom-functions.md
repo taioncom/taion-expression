@@ -17,7 +17,7 @@ const options = {
   customFunctions: {
     greet: (name) => `Hello, ${name}!`,
     double: (x) => x * 2,
-    clamp: (value, min, max) => Math.min(Math.max(value, min), max),
+    discount: (price, pct) => price * (1 - pct / 100),
   },
 };
 
@@ -27,8 +27,8 @@ evaluateExpression('greet("World")', {}, options);
 evaluateExpression('double(21)', {}, options);
 // { success: true, result: 42 }
 
-evaluateExpression('clamp(150, 0, 100)', {}, options);
-// { success: true, result: 100 }
+evaluateExpression('discount(100, 15)', {}, options);
+// { success: true, result: 85 }
 ```
 
 ## Using with Context

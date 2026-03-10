@@ -63,13 +63,14 @@ filter([1, 2, 3, 4, 5], x => x > 3)  // [4, 5]
 filter(items, item => item.active)     // keep active items
 ```
 
-### find
+### find / findIndex
 
-Get the first matching element:
+Get the first matching element or its index:
 
 ```
 find(users, u => u.name == "Alice")
 find(scores, s => s >= 90)
+findIndex([10, 20, 30], x => x > 15)  // 1
 ```
 
 ### reduce
@@ -79,6 +80,32 @@ Accumulate values:
 ```
 reduce([1, 2, 3, 4, 5], (acc, x) => acc + x, 0)     // 15
 reduce(items, (total, item) => total + item.price, 0) // sum prices
+```
+
+### sortBy / groupBy / distinctBy
+
+Sort, group, or deduplicate by a computed key:
+
+```
+sortBy(users, u => u.age)
+// [{name: "Bob", age: 17}, {name: "Alice", age: 25}, ...]
+
+groupBy(items, x => x.category)
+// { "fruit": [...], "vegetable": [...] }
+
+distinctBy(users, u => u.department)
+// one user per department
+```
+
+### minBy / maxBy / sumBy / countBy
+
+Aggregate using a computed value:
+
+```
+minBy(products, p => p.price)         // cheapest product
+maxBy(products, p => p.price)         // most expensive product
+sumBy(orders, o => o.total)           // total revenue
+countBy(users, u => u.active)         // number of active users
 ```
 
 ## Combining Features
@@ -107,4 +134,12 @@ evaluateExpression(
   options
 );
 // ["Alice", "Carol"]
+
+// Get the youngest adult
+evaluateExpression(
+  'minBy(filter(users, u => u.age >= 18), u => u.age)',
+  context,
+  options
+);
+// { name: "Alice", age: 25 }
 ```

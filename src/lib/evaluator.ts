@@ -1,4 +1,7 @@
-import { builtInFunctions } from './built-in-functions.js';
+import {
+  builtInFunctions,
+  contextPassingFunctions,
+} from './functions/index.js';
 import {
   anchorPattern,
   checkSecurityLimits,
@@ -188,18 +191,7 @@ const evaluateCallExpression = (
       const builtin = builtInFunctions[funcName] as (
         ...args: readonly unknown[]
       ) => unknown;
-      if (
-        [
-          'map',
-          'filter',
-          'find',
-          'reduce',
-          'every',
-          'some',
-          'sort',
-          'reverse',
-        ].includes(funcName)
-      ) {
+      if (contextPassingFunctions.includes(funcName)) {
         func = (...funcArgs: unknown[]) => builtin(updatedContext, ...funcArgs);
       } else {
         func = builtin;

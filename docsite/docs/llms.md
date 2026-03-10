@@ -112,29 +112,33 @@ evaluateExpression('items[0]', {
 
 Unresolved identifiers return `null` (never throws).
 
-### Built-in Functions (75 total)
+### Built-in Functions (~140 total)
 
-**Math**: `min(...values)`, `max(...values)`, `round(n,decimals?)`, `floor(n)`, `ceil(n)`, `abs(n)`
+**Math**: `min(...values)`, `max(...values)`, `round(n,decimals?)`, `floor(n)`, `ceil(n)`, `abs(n)`, `pow(base,exp)`, `sqrt(n)`, `log(n)`, `log10(n)`, `log2(n)`, `sign(n)`, `trunc(n)`, `mod(a,b)`, `clamp(v,min,max)`, `lerp(a,b,t)`, `pi()`, `e()`
 
-**String**: `length(s)`, `contains(s,sub)`, `startsWith(s,prefix)`, `endsWith(s,suffix)`, `toLowerCase(s)`, `toUpperCase(s)`, `substring(s,start,end)`, `trim(s)`, `replace(s,search,replacement)`, `split(s,separator)`, `indexOf(s,search)`, `capitalize(s,allWords?)`, `padLeft(v,len,pad?)`, `padRight(v,len,pad?)`
+**Trigonometry**: `sin(rad)`, `cos(rad)`, `tan(rad)`, `asin(n)`, `acos(n)`, `atan(n)`, `atan2(y,x)`
 
-**Array**: `sum(arr)`, `avg(arr)`, `arrayContains(arr,val)`, `join(arr,sep)`, `sort(arr)`, `reverse(arr)`, `length(arr)`, `slice(arr,start,end?)`
+**String**: `length(s)`, `contains(s,sub)`, `startsWith(s,prefix)`, `endsWith(s,suffix)`, `toLowerCase(s)`, `toUpperCase(s)`, `substring(s,start,end)`, `trim(s)`, `trimStart(s)`, `trimEnd(s)`, `replace(s,search,replacement)`, `split(s,separator)`, `indexOf(s,search)`, `lastIndexOf(s,search)`, `capitalize(s,allWords?)`, `padLeft(v,len,pad?)`, `padRight(v,len,pad?)`, `repeat(s,n)`, `charAt(s,index)`, `includes(strOrArr,search)`, `concat(...values)`
 
-**Array higher-order** (require `enableArrowFunctions`): `map(arr,fn)`, `filter(arr,fn)`, `find(arr,fn)`, `reduce(arr,fn,init?)`, `every(arr,fn)`, `some(arr,fn)`
+**Array**: `sum(arr)`, `avg(arr)`, `count(arr)`, `arrayContains(arr,val)`, `first(arr)`, `last(arr)`, `join(arr,sep)`, `sort(arr)`, `reverse(arr)`, `length(arr)`, `slice(arr,start,end?)`, `unique(arr)`, `compact(arr)`, `flat(arr,depth?)`, `range(start,end,step?)`, `chunk(arr,size)`, `zip(arr1,arr2)`
 
-**Object**: `keys(obj)`, `values(obj)`
+**Statistics**: `median(arr)`, `stddev(arr)`, `variance(arr)`, `percentile(arr,p)`
+
+**Array higher-order** (require `enableArrowFunctions`): `map(arr,fn)`, `filter(arr,fn)`, `find(arr,fn)`, `findIndex(arr,fn)`, `reduce(arr,fn,init?)`, `every(arr,fn)`, `some(arr,fn)`, `sortBy(arr,fn)`, `groupBy(arr,fn)`, `distinctBy(arr,fn)`, `minBy(arr,fn)`, `maxBy(arr,fn)`, `sumBy(arr,fn)`, `countBy(arr,fn)`
+
+**Object**: `keys(obj)`, `values(obj)`, `entries(obj)`, `hasKey(obj,key)`, `merge(obj1,obj2)`, `pick(obj,...keys)`, `omit(obj,...keys)`, `fromEntries(entries)`
 
 **Type checking**: `type(v)`, `isNull(v)`, `isUndefined(v)`, `isDefined(v)`, `isNumber(v)`, `isString(v)`, `isBoolean(v)`, `isObject(v)`, `isArray(v)`, `isDate(v)`, `isEmpty(v)`
 
-**Conversion**: `toString(v)`, `toNumber(v)`
+**Conversion**: `toString(v)`, `toNumber(v)`, `toBoolean(v)`, `toInteger(v)`, `toDate(v)`, `toFixed(n,digits)`, `parseInt(s,radix?)`, `parseFloat(s)`
 
-**Utility**: `coalesce(a,b,...)`
+**Utility**: `coalesce(a,b,...)`, `ifElse(cond,then,else)`, `defaultTo(v,fallback)`, `jsonStringify(v)`, `jsonParse(s)`
 
 **Random**: `random()`, `randomInt(min,max)`
 
 **Regex**: `regexTest(s,pattern)`, `regexMatch(s,pattern)`, `regexReplace(s,pattern,replacement)`
 
-**Date**: `now()`, `date(y,m,d,h?,min?,s?,ms?)`, `parseDate(str)`, `isDate(v)`, `year(d)`, `month(d)`, `day(d)`, `hour(d)`, `minute(d)`, `second(d)`, `dayOfWeek(d)`, `timestamp(d)`, `formatDate(d,pattern?)` (tokens: yyyy,yy,MM,dd,HH,mm,ss,SSS), `toISOString(d)`, `dateAdd(d,amount,unit)`, `dateDiff(d1,d2,unit)` (calendar-aware months/years; supports weeks), `startOfDay(d)`, `endOfDay(d)`, `startOfMonth(d)`, `endOfMonth(d)`, `dateBetween(d,start,end)`
+**Date**: `now()`, `date(y,m,d,h?,min?,s?,ms?)`, `parseDate(str)`, `toDate(v)`, `isDate(v)`, `year(d)`, `month(d)`, `day(d)`, `hour(d)`, `minute(d)`, `second(d)`, `dayOfWeek(d)`, `timestamp(d)`, `formatDate(d,pattern?)` (tokens: yyyy,yy,MM,dd,HH,mm,ss,SSS), `toISOString(d)`, `dateAdd(d,amount,unit)`, `dateDiff(d1,d2,unit)` (calendar-aware months/years; supports weeks), `startOfDay(d)`, `endOfDay(d)`, `startOfMonth(d)`, `endOfMonth(d)`, `dateBetween(d,start,end)`
 
 ### Custom Functions
 
