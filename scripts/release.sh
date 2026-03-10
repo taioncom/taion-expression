@@ -1,31 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Release script for @taioncom/taion-expression
-# Usage: npm run release [patch|minor|major] [--dry-run]
+# Interactive release script for @taioncom/taion-expression
+#
+# Usage:
+#   npm run release              # interactive release
+#   npm run release -- --dry-run # interactive release without publishing
 
-BUMP_TYPE="${1:-patch}"
 DRY_RUN=false
 
 for arg in "$@"; do
-  if [[ "$arg" == "--dry-run" ]]; then
-    DRY_RUN=true
-  fi
+  case "$arg" in
+    --dry-run) DRY_RUN=true ;;
+    *)
+      echo "Error: Unknown argument '$arg'."
+      echo "Usage: npm run release [-- --dry-run]"
+      exit 1
+      ;;
+  esac
 done
-
-# Strip --dry-run from BUMP_TYPE if it was the first arg
-if [[ "$BUMP_TYPE" == "--dry-run" ]]; then
-  BUMP_TYPE="patch"
-fi
-
-if [[ "$BUMP_TYPE" != "patch" && "$BUMP_TYPE" != "minor" && "$BUMP_TYPE" != "major" ]]; then
-  echo "Error: Invalid bump type '$BUMP_TYPE'. Must be patch, minor, or major."
-  exit 1
-fi
-
-if $DRY_RUN; then
-  echo "=== DRY RUN MODE ==="
-fi
 
 # ── Pre-flight checks ──────────────────────────────────────────────
 
@@ -50,47 +43,156 @@ if ! $DRY_RUN; then
 fi
 
 echo "Pre-flight checks passed."
+echo ""
 
-# ── Bump version ────────────────────────────────────────────────────
+# ── Step 1: Version ────────────────────────────────────────────────
 
-npm version "$BUMP_TYPE" --no-git-tag-version >/dev/null
-NEW_VERSION="$(node -p "require('./package.json').version")"
-echo "Bumped version to $NEW_VERSION"
+CURRENT_VERSION="$(node -p "require('./package.json').version")"
+BUMP_TYPE=""
 
-# ── Update CHANGELOG.md ────────────────────────────────────────────
+echo "Current version: $CURRENT_VERSION"
+echo ""
+echo "What would you like to release?"
+echo "  1) Release current version ($CURRENT_VERSION)"
+echo "  2) Bump patch  ($(node -e "const v='$CURRENT_VERSION'.split('.'); v[2]++; console.log(v.join('.'))"))"
+echo "  3) Bump minor  ($(node -e "const v='$CURRENT_VERSION'.split('.'); v[1]++; v[2]=0; console.log(v.join('.'))"))"
+echo "  4) Bump major  ($(node -e "const v='$CURRENT_VERSION'.split('.'); v[0]++; v[1]=0; v[2]=0; console.log(v.join('.'))"))"
+echo ""
+read -rp "Choose [1-4]: " VERSION_CHOICE
 
+case "$VERSION_CHOICE" in
+  1) ;;
+  2) BUMP_TYPE="patch" ;;
+  3) BUMP_TYPE="minor" ;;
+  4) BUMP_TYPE="major" ;;
+  *)
+    echo "Aborted."
+    exit 1
+    ;;
+esac
+
+if [[ -n "$BUMP_TYPE" ]]; then
+  npm version "$BUMP_TYPE" --no-git-tag-version >/dev/null
+fi
+
+VERSION="$(node -p "require('./package.json').version")"
+echo ""
+echo "Version to release: $VERSION"
+
+# ── Step 2: Changelog ──────────────────────────────────────────────
+
+CHANGELOG_ENTRY=""
 TODAY="$(date +%Y-%m-%d)"
 
 echo ""
-echo "Enter changelog entry for v$NEW_VERSION (end with an empty line):"
-CHANGELOG_ENTRY=""
-while IFS= read -r line; do
-  [[ -z "$line" ]] && break
-  CHANGELOG_ENTRY="${CHANGELOG_ENTRY}${line}
+echo "Would you like to add a changelog entry?"
+echo "  1) Skip (use existing CHANGELOG.md as-is)"
+echo "  2) Add text to CHANGELOG.md"
+echo ""
+read -rp "Choose [1-2]: " CHANGELOG_CHOICE
+
+case "$CHANGELOG_CHOICE" in
+  1)
+    echo "Keeping existing CHANGELOG.md."
+    ;;
+  2)
+    echo ""
+    echo "Enter changelog entry for v$VERSION (end with an empty line):"
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && break
+      CHANGELOG_ENTRY="${CHANGELOG_ENTRY}${line}
 "
-done
+    done
 
-if [[ -z "$CHANGELOG_ENTRY" ]]; then
-  echo "Error: Changelog entry cannot be empty."
-  git checkout -- package.json
-  exit 1
-fi
-
-CHANGELOG_HEADER="## [$NEW_VERSION] - $TODAY
+    if [[ -z "$CHANGELOG_ENTRY" ]]; then
+      echo "No text entered, keeping existing CHANGELOG.md."
+    else
+      CHANGELOG_HEADER="## [$VERSION] - $TODAY
 
 $CHANGELOG_ENTRY"
 
-if [[ -f CHANGELOG.md ]]; then
-  EXISTING="$(cat CHANGELOG.md)"
-  printf '%s\n\n%s\n' "$CHANGELOG_HEADER" "$EXISTING" > CHANGELOG.md
-else
-  printf '# Changelog\n\n%s\n' "$CHANGELOG_HEADER" > CHANGELOG.md
+      if [[ -f CHANGELOG.md ]]; then
+        EXISTING="$(cat CHANGELOG.md)"
+        printf '%s\n\n%s\n' "$CHANGELOG_HEADER" "$EXISTING" > CHANGELOG.md
+      else
+        printf '# Changelog\n\n%s\n' "$CHANGELOG_HEADER" > CHANGELOG.md
+      fi
+      echo "Updated CHANGELOG.md."
+    fi
+    ;;
+  *)
+    echo "Aborted."
+    if [[ -n "$BUMP_TYPE" ]]; then
+      git checkout -- package.json
+    fi
+    exit 1
+    ;;
+esac
+
+# ── Step 3: Confirmation ──────────────────────────────────────────
+
+HAS_CHANGES=false
+if [[ -n "$(git status --porcelain)" ]]; then
+  HAS_CHANGES=true
 fi
 
-echo "Updated CHANGELOG.md"
+echo ""
+echo "════════════════════════════════════════════════════════"
+echo "  Release Plan"
+echo "════════════════════════════════════════════════════════"
+echo ""
+echo "  Version:     $VERSION"
+echo "  Tag:         v$VERSION"
+if [[ -n "$BUMP_TYPE" ]]; then
+  echo "  Version bump: $BUMP_TYPE ($CURRENT_VERSION -> $VERSION)"
+else
+  echo "  Version bump: none"
+fi
+if [[ -n "$CHANGELOG_ENTRY" ]]; then
+  echo "  Changelog:   updated"
+else
+  echo "  Changelog:   unchanged"
+fi
+if $HAS_CHANGES; then
+  echo "  Commit:      yes (release: v$VERSION)"
+else
+  echo "  Commit:      no (no changes)"
+fi
+if $DRY_RUN; then
+  echo ""
+  echo "  ** DRY RUN -- will NOT publish, push, or create GitHub release **"
+fi
+echo ""
+echo "  Actions:"
+echo "    - Build and run all tests"
+if $HAS_CHANGES; then
+  echo "    - Commit changes"
+fi
+echo "    - Create git tag v$VERSION"
+if ! $DRY_RUN; then
+  echo "    - Publish to npm"
+  echo "    - Push to origin (commits + tags)"
+  if command -v gh &>/dev/null; then
+    echo "    - Create GitHub release"
+  fi
+fi
+echo ""
+echo "════════════════════════════════════════════════════════"
+echo ""
+read -rp "Proceed? [y/N]: " CONFIRM
+
+if [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]]; then
+  echo "Aborted."
+  # Undo any local changes from version bump or changelog
+  if $HAS_CHANGES; then
+    git checkout -- .
+  fi
+  exit 1
+fi
 
 # ── Build and test ──────────────────────────────────────────────────
 
+echo ""
 echo "Building and running tests..."
 npm run build
 npm run test:lint
@@ -101,19 +203,25 @@ echo "Build and tests passed."
 
 # ── Commit, tag, publish ────────────────────────────────────────────
 
-git add package.json CHANGELOG.md
-git commit -m "release: v$NEW_VERSION"
-git tag "v$NEW_VERSION"
+if $HAS_CHANGES; then
+  git add package.json CHANGELOG.md
+  git commit -m "release: v$VERSION"
+fi
+
+git tag "v$VERSION"
 
 if $DRY_RUN; then
   echo ""
   echo "=== DRY RUN COMPLETE ==="
-  echo "Version: $NEW_VERSION"
-  echo "Tag: v$NEW_VERSION"
+  echo "Version: $VERSION"
+  echo "Tag: v$VERSION"
   echo "Skipped: npm publish, git push, GitHub release"
   echo ""
-  echo "To undo the dry-run commit and tag:"
-  echo "  git tag -d v$NEW_VERSION && git reset --soft HEAD~1 && git checkout -- package.json CHANGELOG.md"
+  echo "To undo:"
+  echo "  git tag -d v$VERSION"
+  if $HAS_CHANGES; then
+    echo "  git reset --soft HEAD~1 && git checkout -- ."
+  fi
   exit 0
 fi
 
@@ -125,11 +233,18 @@ git push --tags
 
 if command -v gh &>/dev/null; then
   echo "Creating GitHub release..."
-  gh release create "v$NEW_VERSION" --title "v$NEW_VERSION" --notes "$CHANGELOG_ENTRY"
+  NOTES="Release v$VERSION"
+  if [[ -f CHANGELOG.md ]]; then
+    SECTION="$(awk "/^## .*$VERSION/{found=1; next} /^## /{found=0} found" CHANGELOG.md)"
+    if [[ -n "$SECTION" ]]; then
+      NOTES="$SECTION"
+    fi
+  fi
+  gh release create "v$VERSION" --title "v$VERSION" --notes "$NOTES"
   echo "GitHub release created."
 else
   echo "Skipping GitHub release (gh CLI not installed)."
 fi
 
 echo ""
-echo "Released v$NEW_VERSION successfully!"
+echo "Released v$VERSION successfully!"
