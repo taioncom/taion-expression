@@ -117,6 +117,33 @@ describe('Tokenizer', () => {
     });
   });
 
+  test('tokenizes operator aliases correctly', () => {
+    // 'and' -> AND
+    const andTokens = tokenize('and');
+    expect(andTokens.length).toBe(2);
+    expect(andTokens[0].type).toBe(TokenType.AND);
+
+    // 'or' -> OR
+    const orTokens = tokenize('or');
+    expect(orTokens.length).toBe(2);
+    expect(orTokens[0].type).toBe(TokenType.OR);
+
+    // 'not' -> NOT
+    const notTokens = tokenize('not');
+    expect(notTokens.length).toBe(2);
+    expect(notTokens[0].type).toBe(TokenType.NOT);
+
+    // '=' -> EQUAL
+    const eqTokens = tokenize('=');
+    expect(eqTokens.length).toBe(2);
+    expect(eqTokens[0].type).toBe(TokenType.EQUAL);
+
+    // '=>' still works as ARROW
+    const arrowTokens = tokenize('=>');
+    expect(arrowTokens.length).toBe(2);
+    expect(arrowTokens[0].type).toBe(TokenType.ARROW);
+  });
+
   test('tokenizes complex expressions correctly', () => {
     const expr = 'if (x > 10 && y < 20) then "big" else "small"';
     const tokens = tokenize(expr);

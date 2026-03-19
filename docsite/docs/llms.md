@@ -79,12 +79,12 @@ type ExpressionOptions = {
 |-----------|-----------|-------|
 | 1 | `()` | Grouping |
 | 2 | `^` | Exponentiation |
-| 3 | `-x`, `+x`, `!x` | Unary |
+| 3 | `-x`, `+x`, `!x`/`not x` | Unary |
 | 4 | `*`, `/`, `%` | Multiplicative |
 | 5 | `+`, `-` | Additive; `+` also concatenates strings |
-| 6 | `<`, `<=`, `>`, `>=`, `==`, `!=` | Comparison/equality (strict) |
-| 7 | `&&` | Logical AND (short-circuit) |
-| 8 | `\|\|` | Logical OR (short-circuit) |
+| 6 | `<`, `<=`, `>`, `>=`, `==`/`=`, `!=` | Comparison/equality (strict) |
+| 7 | `&&`/`and` | Logical AND (short-circuit) |
+| 8 | `\|\|`/`or` | Logical OR (short-circuit) |
 
 Additional: `? :` (ternary), `.` (member access), `[i]` (array index), `=>` (arrow function).
 

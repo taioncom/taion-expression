@@ -50,9 +50,10 @@ describe('Tokenizer coverage', () => {
     }
   });
 
-  test('standalone = is an error', () => {
-    const result = evaluateExpression('x = 5');
-    expect(result.success).toBe(false);
+  test('standalone = is treated as equality (alias for ==)', () => {
+    const result = evaluateExpression('x = 5', { x: 5 });
+    expect(result.success).toBe(true);
+    expect((result as any).result).toBe(true);
   });
 
   test('standalone | is an error', () => {

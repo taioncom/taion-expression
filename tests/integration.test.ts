@@ -152,6 +152,49 @@ describe('Integration Tests', () => {
     });
   });
 
+  test('operator aliases evaluate correctly', () => {
+    // '=' as equality
+    const eqTrue = evaluateExpression('x = 5', { x: 5 });
+    expect((eqTrue as any).success).toBe(true);
+    expect((eqTrue as any).result).toBe(true);
+
+    const eqFalse = evaluateExpression('x = 5', { x: 3 });
+    expect((eqFalse as any).success).toBe(true);
+    expect((eqFalse as any).result).toBe(false);
+
+    // 'and' as logical AND
+    const andTrue = evaluateExpression('true and true');
+    expect((andTrue as any).success).toBe(true);
+    expect((andTrue as any).result).toBe(true);
+
+    const andFalse = evaluateExpression('true and false');
+    expect((andFalse as any).success).toBe(true);
+    expect((andFalse as any).result).toBe(false);
+
+    // 'or' as logical OR
+    const orTrue = evaluateExpression('true or false');
+    expect((orTrue as any).success).toBe(true);
+    expect((orTrue as any).result).toBe(true);
+
+    const orFalse = evaluateExpression('false or false');
+    expect((orFalse as any).success).toBe(true);
+    expect((orFalse as any).result).toBe(false);
+
+    // 'not' as logical NOT
+    const notTrue = evaluateExpression('not true');
+    expect((notTrue as any).success).toBe(true);
+    expect((notTrue as any).result).toBe(false);
+
+    const notFalse = evaluateExpression('not false');
+    expect((notFalse as any).success).toBe(true);
+    expect((notFalse as any).result).toBe(true);
+
+    // Mixed aliases with symbols
+    const mixed = evaluateExpression('x = 5 and y != 3', { x: 5, y: 4 });
+    expect((mixed as any).success).toBe(true);
+    expect((mixed as any).result).toBe(true);
+  });
+
   test('conditional expressions evaluate correctly', () => {
     const tests = [
       // Using ternary syntax instead of if/then/else

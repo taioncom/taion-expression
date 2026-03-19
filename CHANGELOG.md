@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0
+
+### Added
+
+- Natural-language operator aliases for simpler expressions:
+  - `=` as alias for `==` (equality)
+  - `and` as alias for `&&` (logical AND)
+  - `or` as alias for `||` (logical OR)
+  - `not` as alias for `!` (logical NOT)
+- Aliases are always enabled
+
 ## 1.1.0
 
 ### Added

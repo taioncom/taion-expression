@@ -384,6 +384,12 @@ const identifier = (state: TokenizerState): TokenizerState => {
       return addToken(afterId, TokenType.THEN);
     case 'else':
       return addToken(afterId, TokenType.ELSE);
+    case 'and':
+      return addToken(afterId, TokenType.AND);
+    case 'or':
+      return addToken(afterId, TokenType.OR);
+    case 'not':
+      return addToken(afterId, TokenType.NOT);
     default:
       return addToken(afterId, TokenType.IDENTIFIER);
   }
@@ -468,13 +474,8 @@ const scanToken = (state: TokenizerState): TokenizerState => {
         return addToken(advance(current), TokenType.ARROW, '=>');
       }
 
-      // Standalone '=' is not a valid operator
-      return addErrorToken(
-        current,
-        "Unexpected character '='. Did you mean '=='?",
-        current.line,
-        current.column,
-      );
+      // Standalone '=' is treated as equality (alias for '==')
+      return addToken(current, TokenType.EQUAL);
     }
 
     case '<': {

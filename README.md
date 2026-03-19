@@ -54,7 +54,7 @@ settings.enabled
 
 #### Comparison Operators
 
-- Equal: `==` (strict equality)
+- Equal: `==` or `=` (strict equality)
 - Not equal: `!=` (strict inequality)
 - Greater than: `>`
 - Less than: `<`
@@ -63,9 +63,9 @@ settings.enabled
 
 #### Logical Operators
 
-- AND: `&&`
-- OR: `||`
-- NOT: `!`
+- AND: `&&` or `and`
+- OR: `||` or `or`
+- NOT: `!` or `not`
 
 #### String Operators
 
@@ -90,12 +90,12 @@ Operators are evaluated in the following order (from highest to lowest precedenc
 
 1. Parentheses `()`
 2. Exponentiation `^`
-3. Unary operators `+`, `-`, `!`
+3. Unary operators `+`, `-`, `!`/`not`
 4. Multiplication, division, modulo `*`, `/`, `%`
 5. Addition, subtraction `+`, `-`
-6. Comparison operators `<`, `<=`, `>`, `>=`, `==`, `!=`
-7. Logical AND `&&`
-8. Logical OR `||`
+6. Comparison operators `<`, `<=`, `>`, `>=`, `==`/`=`, `!=`
+7. Logical AND `&&`/`and`
+8. Logical OR `||`/`or`
 
 ### Control Flow
 

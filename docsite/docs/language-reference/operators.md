@@ -23,7 +23,7 @@ The `+` operator also concatenates strings: `"Hello" + " World"` produces `"Hell
 
 | Operator | Description            | Example    | Result  |
 |----------|----------------------|------------|---------|
-| `==`     | Strict equal          | `3 == 3`   | `true`  |
+| `==`, `=` | Strict equal         | `3 == 3`   | `true`  |
 | `!=`     | Strict not equal      | `3 != 4`   | `true`  |
 | `>`      | Greater than          | `5 > 3`    | `true`  |
 | `<`      | Less than             | `3 < 5`    | `true`  |
@@ -36,9 +36,9 @@ Comparison operators return boolean values. Equality uses strict comparison (`==
 
 | Operator | Description | Example          | Result  |
 |----------|------------|------------------|---------|
-| `&&`     | Logical AND | `true && false`  | `false` |
-| `\|\|`   | Logical OR  | `true \|\| false` | `true`  |
-| `!`      | Logical NOT | `!true`          | `false` |
+| `&&`, `and` | Logical AND | `true && false`  | `false` |
+| `\|\|`, `or` | Logical OR  | `true \|\| false` | `true`  |
+| `!`, `not`   | Logical NOT | `!true`          | `false` |
 
 `&&` and `||` use short-circuit evaluation and return the deciding operand value (not coerced to boolean). For example, `name || "anonymous"` returns `name` if truthy, otherwise `"anonymous"`.
 
@@ -50,12 +50,12 @@ Operators are evaluated in this order (highest precedence first):
 |-----------|----------------------|--------------------------------|
 | 1         | `()`                 | Parentheses (grouping)         |
 | 2         | `^`                  | Exponentiation                 |
-| 3         | `+` `-` `!` (unary)  | Unary operators                |
+| 3         | `+` `-` `!`/`not` (unary) | Unary operators           |
 | 4         | `*` `/` `%`          | Multiplication, division, modulo |
 | 5         | `+` `-`              | Addition, subtraction          |
-| 6         | `<` `<=` `>` `>=` `==` `!=` | Comparison            |
-| 7         | `&&`                 | Logical AND                    |
-| 8         | `||`                 | Logical OR                     |
+| 6         | `<` `<=` `>` `>=` `==`/`=` `!=` | Comparison         |
+| 7         | `&&`/`and`           | Logical AND                    |
+| 8         | `\|\|`/`or`          | Logical OR                     |
 
 Use parentheses to override precedence:
 
