@@ -1,4 +1,21 @@
 /**
+ * Define an own enumerable property. Unlike plain assignment this never
+ * touches the prototype, so keys like `__proto__` or `constructor` are safe.
+ */
+export const setOwnProperty = (
+  obj: Record<string, unknown>,
+  key: string,
+  value: unknown,
+): void => {
+  Object.defineProperty(obj, key, {
+    value,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
+};
+
+/**
  * Object operations
  */
 export const objectFunctions: Record<
@@ -53,7 +70,7 @@ export const objectFunctions: Record<
     for (const k of keys) {
       const key = String(k);
       if (Object.prototype.hasOwnProperty.call(source, key)) {
-        result[key] = source[key];
+        setOwnProperty(result, key, source[key]);
       }
     }
     return result;
@@ -70,7 +87,7 @@ export const objectFunctions: Record<
     const result: Record<string, unknown> = {};
     for (const key of Object.keys(source)) {
       if (!keysToOmit.has(key)) {
-        result[key] = source[key];
+        setOwnProperty(result, key, source[key]);
       }
     }
     return result;
@@ -82,7 +99,7 @@ export const objectFunctions: Record<
     const result: Record<string, unknown> = {};
     for (const entry of entries) {
       if (Array.isArray(entry) && entry.length >= 2) {
-        result[String(entry[0])] = entry[1];
+        setOwnProperty(result, String(entry[0]), entry[1]);
       }
     }
     return result;

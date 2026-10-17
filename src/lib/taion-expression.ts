@@ -9,6 +9,7 @@ import {
   ExtendedError,
   Token,
 } from './types.js';
+import { validateAST } from './validator.js';
 
 /**
  * Type representing a successful compilation result
@@ -74,6 +75,10 @@ const normalizeOptions = (
     options.maxComplexity !== undefined ? options.maxComplexity : 100,
   maxLoopIterations:
     options.maxLoopIterations !== undefined ? options.maxLoopIterations : 10000,
+  maxExpressionLength:
+    options.maxExpressionLength !== undefined
+      ? options.maxExpressionLength
+      : 10000,
 
   // Property access security (preserve undefined vs empty array distinction)
   allowedProperties: options.allowedProperties,
@@ -138,6 +143,45 @@ export const compileExpression = (
   // Normalize options
   const normalizedOptions = normalizeOptions(options);
 
+  const maxLength = normalizedOptions.maxExpressionLength ?? 0;
+  if (maxLength > 0 && expressionString.length > maxLength) {
+    return {
+      success: false,
+      error: createCompilationError(
+        `Expression too long: ${expressionString.length} characters exceeds the maximum of ${maxLength}`,
+        'MAX_EXPRESSION_LENGTH_EXCEEDED',
+      ),
+      errorType: 'ParseError',
+      errorCode: 'MAX_EXPRESSION_LENGTH_EXCEEDED',
+    };
+  }
+
+  try {
+    return compileTokens(expressionString, normalizedOptions);
+  } catch (e) {
+    // Deeply nested input can exhaust the JS call stack in the recursive parser
+    if (e instanceof RangeError) {
+      return {
+        success: false,
+        error: createCompilationError(
+          'Expression is nested too deeply',
+          'MAX_NESTING_EXCEEDED',
+        ),
+        errorType: 'ParseError',
+        errorCode: 'MAX_NESTING_EXCEEDED',
+      };
+    }
+    throw e;
+  }
+};
+
+/**
+ * Tokenize, parse and set up evaluation for an expression with normalized options
+ */
+const compileTokens = (
+  expressionString: string,
+  normalizedOptions: ExpressionOptions,
+): CompileResult => {
   // Step 1: Tokenize the expression
   const tokens = tokenize(expressionString);
 
@@ -166,14 +210,30 @@ export const compileExpression = (
     };
   }
 
-  // Step 3: Set up AST interpreter
-  const compiled = evaluateAST(ast, expressionString, normalizedOptions);
+  // Step 3: Check feature flags and complexity
+  const validationError = validateAST(ast, normalizedOptions);
+  if (validationError) {
+    return compilationFailure(validationError);
+  }
 
-  return {
-    success: true,
-    result: compiled,
-  };
+  // Step 4: Set up AST interpreter
+  try {
+    const compiled = evaluateAST(ast, expressionString, normalizedOptions);
+    return { success: true, result: compiled };
+  } catch (e) {
+    return compilationFailure(e as ExtendedError);
+  }
 };
+
+/**
+ * Build a compile failure result for errors found after parsing
+ */
+const compilationFailure = (error: ExtendedError): CompileFailure => ({
+  success: false,
+  error,
+  errorType: 'CompilationError',
+  errorCode: error.code || 'COMPILE_ERROR',
+});
 
 /**
  * Safe compile function that returns null instead of throwing

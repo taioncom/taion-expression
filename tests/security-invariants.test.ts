@@ -3,23 +3,40 @@ import { evaluateExpression } from '../src/index.js';
 import { EvaluateFailure } from '../src/lib/taion-expression.js';
 
 describe('Security Limits and Invariants', () => {
-  test('maxComplexity limit is strictly enforced across large mapped arrays', () => {
-    // Array of 500 items mapped over an AST node tree should trip a maxComplexity of 100 easily
-    const array = Array(500).fill(1);
+  test('maxComplexity limits AST size at compile time', () => {
+    const result = evaluateExpression(
+      Array(60).fill('1').join(' + '),
+      {},
+      { maxComplexity: 100 },
+    );
 
+    expect(result.success).toBe(false);
+    expect((result as EvaluateFailure).errorType).toBe('CompilationError');
+    expect((result as EvaluateFailure).errorCode).toBe(
+      'MAX_COMPLEXITY_EXCEEDED',
+    );
+  });
+
+  test('maxComplexity does not count repeated evaluation of arrow bodies', () => {
     const result = evaluateExpression(
       'map(arr, x => x + 1)',
-      { arr: array },
-      {
-        enableArrays: true,
-        enableArrowFunctions: true,
-        maxComplexity: 100,
-      },
+      { arr: Array(500).fill(1) },
+      { enableArrowFunctions: true, maxComplexity: 100 },
+    );
+
+    expect(result.success).toBe(true);
+  });
+
+  test('nested higher-order calls are bounded by maxLoopIterations', () => {
+    const result = evaluateExpression(
+      'map(arr, x => map(arr, y => y))',
+      { arr: Array(200).fill(1) },
+      { enableArrowFunctions: true },
     );
 
     expect(result.success).toBe(false);
     expect((result as EvaluateFailure).errorCode).toBe(
-      'MAX_COMPLEXITY_EXCEEDED',
+      'MAX_LOOP_ITERATIONS_EXCEEDED',
     );
   });
 

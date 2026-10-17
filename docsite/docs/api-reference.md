@@ -93,9 +93,10 @@ type ExpressionOptions = {
   customFunctions?: Record<string, (...args: readonly unknown[]) => unknown>;
   timeout?: number;                    // default: 1000
   maxCallStackDepth?: number;          // default: 50
-  maxComplexity?: number;              // default: 100
+  maxComplexity?: number;              // default: 100 (AST nodes, checked at compile time)
   maxLoopIterations?: number;          // default: 10000
-  allowedProperties?: readonly string[];
+  maxExpressionLength?: number;        // default: 10000 (0 disables)
+  allowedProperties?: readonly string[]; // empty or omitted = allow all
   deniedProperties?: readonly string[];
   allowPrototypeAccess?: boolean;      // default: false
   enableArrays?: boolean;              // default: true
@@ -113,6 +114,8 @@ type CompiledExpression = {
   compiledCode: string;
 };
 ```
+
+`evaluate()` throws on runtime errors (the error carries a `code`). Use `evaluateExpression` if you want a result object instead.
 
 ### EvaluateResult
 

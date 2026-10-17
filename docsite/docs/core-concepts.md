@@ -49,12 +49,13 @@ const options = {
 
   // Security limits
   timeout: 1000,               // max execution time in ms
-  maxComplexity: 100,          // max AST nodes
+  maxComplexity: 100,          // max AST nodes (checked at compile time)
+  maxExpressionLength: 10000,  // max source length in characters (0 disables)
   maxCallStackDepth: 50,       // max function call depth
   maxLoopIterations: 10000,    // max iterations in array functions
 
   // Property access control
-  allowedProperties: [],       // regex patterns; if set, only these allowed
+  allowedProperties: [],       // regex patterns; if non-empty, only these allowed
   deniedProperties: [],        // regex patterns; always denied
   allowPrototypeAccess: false, // block __proto__, constructor, prototype
 
@@ -69,11 +70,12 @@ See [Security](./security/overview.md) for details on each limit.
 
 ## Evaluation Pipeline
 
-The evaluator processes an expression in three stages:
+The evaluator processes an expression in four stages:
 
 1. **Tokenize** -- the expression string is split into tokens (numbers, operators, identifiers, keywords, etc.)
 2. **Parse** -- tokens are assembled into an Abstract Syntax Tree (AST) following operator precedence rules
-3. **Evaluate** -- the AST is interpreted against the provided context to produce a result
+3. **Compile** -- the AST is checked against the options: complexity limit, disabled features and property patterns
+4. **Evaluate** -- the AST is interpreted against the provided context to produce a result
 
 Each stage can produce an error. The result type tells you exactly where the failure occurred through the `errorType` field (`TokenizationError`, `ParseError`, `CompilationError`, or `EvaluationError`).
 

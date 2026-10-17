@@ -66,6 +66,11 @@ const options = {
 };
 ```
 
+## Errors and `this`
+
+- If a custom function (or a function passed in the context) throws, the call evaluates to `null` instead of failing the expression. Return an explicit value if callers need to tell errors apart.
+- Functions are called without a `this` binding, so methods on context objects that rely on `this` won't work. Pass plain functions or bind them first (`obj.method.bind(obj)`).
+
 ## Safety Considerations
 
 Custom functions execute in the host JavaScript environment, so they can perform operations that the expression language itself cannot. Keep these guidelines in mind:

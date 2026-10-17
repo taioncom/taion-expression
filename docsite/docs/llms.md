@@ -42,7 +42,7 @@ if (compiled.success) {
 | `safeCompileExpression` | `(expr, options?) => CompiledExpression \| null` | Compiled expression or `null` on error |
 | `getCompiledCode` | `(expr, options?) => string \| null` | Compiled code string or `null` on error |
 
-`CompiledExpression` has: `evaluate(context) => unknown`, `source: string`, `compiledCode: string`.
+`CompiledExpression` has: `evaluate(context) => unknown` (throws on runtime errors), `source: string`, `compiledCode: string`.
 
 ## Options
 
@@ -51,8 +51,9 @@ type ExpressionOptions = {
   customFunctions?: Record<string, (...args: unknown[]) => unknown>;
   timeout?: number;              // Default: 1000 (ms)
   maxCallStackDepth?: number;    // Default: 50
-  maxComplexity?: number;        // Default: 100 (max AST nodes evaluated)
+  maxComplexity?: number;        // Default: 100 (max AST nodes, checked at compile time)
   maxLoopIterations?: number;    // Default: 10000
+  maxExpressionLength?: number;  // Default: 10000 (max source chars, 0 disables)
   allowedProperties?: string[];  // Regex patterns; empty = allow all
   deniedProperties?: string[];   // Regex patterns
   allowPrototypeAccess?: boolean; // Default: false
@@ -71,22 +72,25 @@ type ExpressionOptions = {
 - **Booleans**: `true`, `false`
 - **Null**: `null`
 - **Arrays**: `[1, 2, 3]` (requires `enableArrays`, on by default)
-- **Template strings**: `` `Hello ${name}` `` (requires `enableTemplateStrings`)
+- **Template strings**: `` `Hello ${name}` `` (requires `enableTemplateStrings`; any backtick string is a template)
 
 ### Operators (by precedence, highest first)
 
 | Precedence | Operators | Notes |
 |-----------|-----------|-------|
 | 1 | `()` | Grouping |
-| 2 | `^` | Exponentiation |
+| 2 | `^` | Exponentiation, right-associative (`-2^2` = -4, `2^3^2` = 512) |
 | 3 | `-x`, `+x`, `!x`/`not x` | Unary |
 | 4 | `*`, `/`, `%` | Multiplicative |
 | 5 | `+`, `-` | Additive; `+` also concatenates strings |
-| 6 | `<`, `<=`, `>`, `>=`, `==`/`=`, `!=` | Comparison/equality (strict) |
-| 7 | `&&`/`and` | Logical AND (short-circuit) |
-| 8 | `\|\|`/`or` | Logical OR (short-circuit) |
+| 6 | `<`, `<=`, `>`, `>=` | Comparison |
+| 7 | `==`/`=`, `!=` | Equality (strict) |
+| 8 | `&&`/`and` | Logical AND (short-circuit) |
+| 9 | `\|\|`/`or` | Logical OR (short-circuit) |
 
 Additional: `? :` (ternary), `.` (member access), `[i]` (array index), `=>` (arrow function).
+
+`<`, `<=`, `>`, `>=` compare two strings alphabetically; otherwise both sides are converted to numbers (dates compare by time).
 
 ### Control Flow
 
@@ -118,9 +122,11 @@ Unresolved identifiers return `null` (never throws).
 
 **Trigonometry**: `sin(rad)`, `cos(rad)`, `tan(rad)`, `asin(n)`, `acos(n)`, `atan(n)`, `atan2(y,x)`
 
-**String**: `length(s)`, `contains(s,sub)`, `startsWith(s,prefix)`, `endsWith(s,suffix)`, `toLowerCase(s)`, `toUpperCase(s)`, `substring(s,start,end)`, `trim(s)`, `trimStart(s)`, `trimEnd(s)`, `replace(s,search,replacement)`, `split(s,separator)`, `indexOf(s,search)`, `lastIndexOf(s,search)`, `capitalize(s,allWords?)`, `padLeft(v,len,pad?)`, `padRight(v,len,pad?)`, `repeat(s,n)`, `charAt(s,index)`, `includes(strOrArr,search)`, `concat(...values)`
+**String**: `length(s)`, `contains(s,sub)`, `startsWith(s,prefix)`, `endsWith(s,suffix)`, `toLowerCase(s)`, `toUpperCase(s)`, `substring(s,start,end?)`, `trim(s)`, `trimStart(s)`, `trimEnd(s)`, `replace(s,search,replacement)`, `split(s,separator)`, `indexOf(s,search)`, `lastIndexOf(s,search)`, `capitalize(s,allWords?)`, `padLeft(v,len,pad?)`, `padRight(v,len,pad?)`, `repeat(s,n)`, `charAt(s,index)`, `includes(strOrArr,search)`, `concat(...values)`
 
 **Array**: `sum(arr)`, `avg(arr)`, `count(arr)`, `arrayContains(arr,val)`, `first(arr)`, `last(arr)`, `join(arr,sep)`, `sort(arr)`, `reverse(arr)`, `length(arr)`, `slice(arr,start,end?)`, `unique(arr)`, `compact(arr)`, `flat(arr,depth?)`, `range(start,end,step?)`, `chunk(arr,size)`, `zip(arr1,arr2)`
+
+Limits: `repeat` n <= 10000, `split` keeps <= 10000 pieces, `range` yields <= 10000 elements; strings are capped at 1,000,000 chars (`repeat`/`join`/`concat` return `""`, `padLeft`/`padRight` return input, `+` fails with `MAX_STRING_LENGTH_EXCEEDED`). `count(x)` counts arrays only (`count("abc")` = 0). `isNumber(NaN)` is false.
 
 **Statistics**: `median(arr)`, `stddev(arr)`, `variance(arr)`, `percentile(arr,p)`
 
@@ -136,7 +142,7 @@ Unresolved identifiers return `null` (never throws).
 
 **Random**: `random()`, `randomInt(min,max)`
 
-**Regex**: `regexTest(s,pattern)`, `regexMatch(s,pattern)`, `regexReplace(s,pattern,replacement)`
+**Regex**: `regexTest(s,pattern)`, `regexMatch(s,pattern)`, `regexReplace(s,pattern,replacement)`. Patterns over 200 chars, with nested quantifiers like `(a+)+` or backreferences are rejected, as are inputs over 100000 chars: result is `false` / `null` / input unchanged.
 
 **Date**: `now()`, `date(y,m,d,h?,min?,s?,ms?)`, `parseDate(str)`, `toDate(v)`, `isDate(v)`, `year(d)`, `month(d)`, `day(d)`, `hour(d)`, `minute(d)`, `second(d)`, `dayOfWeek(d)`, `timestamp(d)`, `formatDate(d,pattern?)` (tokens: yyyy,yy,MM,dd,HH,mm,ss,SSS), `toISOString(d)`, `dateAdd(d,amount,unit)`, `dateDiff(d1,d2,unit)` (calendar-aware months/years; supports weeks), `startOfDay(d)`, `endOfDay(d)`, `startOfMonth(d)`, `endOfMonth(d)`, `dateBetween(d,start,end)`
 
@@ -177,9 +183,9 @@ evaluateExpression(
 ### Property Access Control
 
 ```typescript
-// Only allow specific properties
+// Only allow specific properties (parent segments are allowed for traversal)
 evaluateExpression('user.name', context, {
-  allowedProperties: ['user', 'user\\.name']
+  allowedProperties: ['user\\.name']
 });
 
 // Block specific properties
@@ -188,15 +194,15 @@ evaluateExpression('data.value', context, {
 });
 ```
 
-Patterns are regex, auto-anchored with `^...$`. Checked against both full dotted path and leaf property name. Denied properties take precedence over allowed.
+Patterns are regex, auto-anchored with `^...$`. Checked against both full dotted path and leaf property name. Denied properties take precedence over allowed and apply to top-level identifiers, dot access, static bracket access (`user["password"]` has path `user.password`) and function names. The allowlist applies to values read out: intermediate segments are exempt for traversal, built-in/custom function names are exempt, context functions are not; arrow parameters are not checked. Not data redaction: `values`/`entries`/`jsonStringify` see whole objects.
 
 ### Prototype Pollution Prevention
 
-`__proto__`, `constructor`, and `prototype` access is blocked by default. Only own properties are accessible unless `allowPrototypeAccess: true`.
+`__proto__`, `constructor`, and `prototype` access is blocked by default. Only own properties (of the context and of objects) are accessible unless `allowPrototypeAccess: true`, so identifiers like `toString` or `constructor` resolve to `null`.
 
 ### Resource Limits
 
-All enforced per evaluation: `timeout` (wall clock), `maxComplexity` (AST nodes), `maxCallStackDepth` (nested calls), `maxLoopIterations` (array HOF iterations).
+Compile time: `maxExpressionLength` (source chars), `maxComplexity` (AST nodes). Per evaluation: `timeout` (wall clock), `maxCallStackDepth` (nested calls), `maxLoopIterations` (iterations across all 16 higher-order array functions; `sortBy` counts 2x).
 
 ## Error Codes
 
@@ -204,15 +210,24 @@ All enforced per evaluation: `timeout` (wall clock), `maxComplexity` (AST nodes)
 |------|------|
 | `TOKENIZE_ERROR` | Invalid characters, unterminated strings |
 | `PARSE_ERROR` | Syntax errors |
-| `EVALUATION_ERROR` | Runtime errors |
+| `MAX_EXPRESSION_LENGTH_EXCEEDED` | Source longer than `maxExpressionLength` |
+| `MAX_NESTING_EXCEEDED` | Expression nested too deeply to parse |
+| `MAX_COMPLEXITY_EXCEEDED` | Too many AST nodes (compile time) |
+| `ARRAY_FEATURE_DISABLED` | Array syntax used with `enableArrays: false` (compile time) |
+| `TEMPLATE_STRINGS_DISABLED` | Template strings used with feature disabled (compile time) |
+| `ARROW_FUNCTIONS_DISABLED` | Arrow functions used with feature disabled (compile time) |
+| `INVALID_REGEX_PATTERN` | Invalid `allowedProperties`/`deniedProperties` pattern (compile time) |
+| `EVALUATION_FAILED` | Unexpected runtime error |
+| `EVALUATION_ERROR` | A non-`Error` value was thrown at runtime |
 | `TIMEOUT_EXCEEDED` | Execution time exceeded |
-| `MAX_COMPLEXITY_EXCEEDED` | Too many AST nodes evaluated |
 | `MAX_CALL_STACK_EXCEEDED` | Function nesting too deep |
 | `MAX_LOOP_ITERATIONS_EXCEEDED` | Array iteration limit hit |
+| `MAX_STRING_LENGTH_EXCEEDED` | `+` produced a string over 1,000,000 chars |
 | `PROPERTY_ACCESS_DENIED` | Blocked by property security policy |
-| `ARRAY_FEATURE_DISABLED` | Array syntax used with `enableArrays: false` |
-| `TEMPLATE_STRINGS_DISABLED` | Template strings used with feature disabled |
-| `ARROW_FUNCTIONS_DISABLED` | Arrow functions used with feature disabled |
+| `FUNCTION_ACCESS_DENIED` | Function name blocked by security policy |
+| `UNSUPPORTED_FUNCTION_CALL` | Dynamic function reference (e.g. calling a call result) |
+
+`errorType` is `TokenizationError`, `ParseError`, `CompilationError` (post-parse checks) or `EvaluationError`.
 
 ## CommonJS / ESM
 

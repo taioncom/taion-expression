@@ -36,7 +36,7 @@ A more readable alternative for conditionals:
 if (condition) then expression1 else expression2
 ```
 
-The parentheses around the condition are required. Both branches must be provided.
+The parentheses around the condition are optional (`if age >= 18 then ...` also works). Both branches must be provided.
 
 Examples:
 
@@ -58,12 +58,14 @@ else
 
 ## Truthiness
 
-The condition in both forms must evaluate to a boolean. Non-boolean values are not automatically coerced -- use explicit comparisons:
+The condition in both forms uses JavaScript truthiness. `false`, `null`, `0`, `NaN` and `""` are falsy; everything else is truthy, including empty arrays and objects:
 
 ```
-// Use this
+name ? "has name" : "no name"   // "" and null give "no name"
+items ? "has items" : "empty"   // [] is truthy, so this gives "has items"
+
+// Check arrays by length instead
 length(items) > 0 ? "has items" : "empty"
-
-// Not this (will not work as expected)
-items ? "has items" : "empty"
 ```
+
+The two branches may return values of different types.

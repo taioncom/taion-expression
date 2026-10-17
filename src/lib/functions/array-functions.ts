@@ -1,3 +1,5 @@
+import { joinLimited } from './string-functions.js';
+
 /**
  * Array operations (non-higher-order)
  */
@@ -39,7 +41,10 @@ export const arrayFunctions: Record<
   /** Joins array elements with a separator */
   join: (array: unknown, separator: unknown): string => {
     if (!Array.isArray(array)) return '';
-    return array.join(separator !== undefined ? String(separator) : ',');
+    return joinLimited(
+      array.map((v) => (v === null || v === undefined ? '' : String(v))),
+      separator !== undefined ? String(separator) : ',',
+    );
   },
 
   /** Returns the median value of a numeric array */

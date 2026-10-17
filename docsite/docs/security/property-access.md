@@ -8,6 +8,21 @@ The evaluator provides fine-grained control over which properties expressions ca
 
 Patterns are matched against the **full dotted path** (e.g., `user.address.city`) and against the **leaf property name** (e.g., `city`). This lets you write broad rules like `'password'` that block a property everywhere, or specific rules like `'user.secret'` that target a single path.
 
+Patterns are regular expressions, automatically anchored with `^` and `$`. A `.` in a pattern matches any character, so escape it (`'user\\.secret'`) if you need an exact match.
+
+The policy applies to:
+
+- top-level context variables (`secret`)
+- dot access (`user.secret`)
+- bracket access with a static key, matched by its full path (`user["secret"]` matches `'user.secret'`)
+- function names (`deniedProperties` only, see below)
+
+Arrow function parameters (such as `x` in `x => x.name`) are not checked themselves, but property access on them is.
+
+:::warning
+Property access control is not data redaction. If an expression can reference an object, functions such as `values`, `entries`, `keys` and `jsonStringify` receive the whole object, including properties the policy would block on direct access. Keep data that expressions must never see out of the context.
+:::
+
 ## Prototype Blocking
 
 By default, access to prototype-chain properties is blocked. These properties are always denied unless `allowPrototypeAccess` is explicitly set to `true`:
@@ -28,7 +43,11 @@ const options = { allowPrototypeAccess: true };
 
 ## Allowlist
 
-When `allowedProperties` is set, only properties matching the provided patterns are accessible:
+When `allowedProperties` is set to a non-empty list, only values matching the provided patterns can be read. An empty list (or omitting the option) allows everything.
+
+Path segments used only to reach a child are exempt, so `user` in `user.name` doesn't need its own pattern. Reading the parent itself, for example `user` on its own or passing it to `values(user)`, is denied unless it matches.
+
+Built-in and custom function names are not subject to the allowlist; functions passed in through the context are. `deniedProperties` applies to all function names, failing with `FUNCTION_ACCESS_DENIED`.
 
 ```typescript
 const options = {
@@ -59,7 +78,7 @@ evaluateExpression('user.name', context, options);
 evaluateExpression('group.name', context, options);
 ```
 
-Deep paths work too -- intermediate segments are automatically allowed:
+Deep paths work too -- intermediate segments are automatically allowed for traversal, but reading them directly (e.g. `user.address`) is denied:
 
 ```typescript
 const options = {

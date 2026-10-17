@@ -3,12 +3,13 @@ import {
   contextPassingFunctions,
 } from './functions/index.js';
 import {
-  anchorPattern,
   checkSecurityLimits,
+  compilePatterns,
   createSecurityContext,
   EvaluatorContext,
   getPropertyPath,
   isPropertyAccessAllowed,
+  MAX_STRING_LENGTH,
 } from './security.js';
 import {
   ArrayIndexNode,
@@ -35,49 +36,96 @@ const evaluateLiteral = (node: LiteralNode): unknown => {
   return node.value;
 };
 
-// Evaluate an identifier
+const hasOwn = (obj: unknown, key: string): boolean =>
+  Object.prototype.hasOwnProperty.call(obj, key);
+
+const denyAccess = (propertyName: string): Error =>
+  createCompilationError(
+    `Access to property '${propertyName}' is not allowed by security policy`,
+    'PROPERTY_ACCESS_DENIED',
+  );
+
+// Evaluate an identifier. Expression-local variables (arrow parameters) are not
+// subject to the property policy; context variables are.
 const evaluateIdentifier = (
   node: IdentifierNode,
   context: EvaluatorContext,
+  intermediate: boolean,
 ): unknown => {
-  if (node.name in context.localVariables) {
+  if (hasOwn(context.localVariables, node.name)) {
     return context.localVariables[node.name];
   }
-  if (node.name in context.rootContext) {
-    return context.rootContext[node.name];
+  if (!hasOwn(context.rootContext, node.name)) return null;
+  if (!isPropertyAccessAllowed(node.name, node.name, context, intermediate)) {
+    throw denyAccess(node.name);
   }
-  return null;
+  return context.rootContext[node.name];
 };
 
-const evaluateMemberExpression = (
-  node: MemberExpressionNode,
+// Read a property from an object, honouring the prototype access setting
+const readProperty = (
+  object: unknown,
+  propertyName: string,
   context: EvaluatorContext,
 ): unknown => {
-  const object = evaluateNode(node.object, context);
-  if (object == null) return null;
-
-  const propertyName = node.property.name;
-  const fullPath = getPropertyPath(node) || propertyName;
-
-  if (!isPropertyAccessAllowed(propertyName, fullPath, context)) {
-    throw createCompilationError(
-      `Access to property '${propertyName}' is not allowed by security policy`,
-      'PROPERTY_ACCESS_DENIED',
-    );
-  }
-
-  if (
-    !context.options.allowPrototypeAccess &&
-    !Object.prototype.hasOwnProperty.call(object, propertyName)
-  ) {
+  if (!context.options.allowPrototypeAccess && !hasOwn(object, propertyName)) {
     return null;
   }
-
   try {
     const val = (object as Record<string, unknown>)[propertyName];
     return val === undefined ? null : val;
   } catch {
     return null;
+  }
+};
+
+const evaluateMemberExpression = (
+  node: MemberExpressionNode,
+  context: EvaluatorContext,
+  intermediate: boolean,
+): unknown => {
+  const object = evaluateNode(node.object, context, true);
+  if (object == null) return null;
+
+  const propertyName = node.property.name;
+  const fullPath = getPropertyPath(node) || propertyName;
+
+  if (!isPropertyAccessAllowed(propertyName, fullPath, context, intermediate)) {
+    throw denyAccess(propertyName);
+  }
+
+  return readProperty(object, propertyName, context);
+};
+
+// Concatenate strings, rejecting results over the maximum string length
+const concatStrings = (left: string, right: string): string => {
+  if (left.length + right.length > MAX_STRING_LENGTH) {
+    throw createCompilationError(
+      `String result exceeds the maximum length of ${MAX_STRING_LENGTH} characters`,
+      'MAX_STRING_LENGTH_EXCEEDED',
+    );
+  }
+  return left + right;
+};
+
+// Compare two values: strings lexicographically, everything else numerically
+const compareValues = (
+  operator: string,
+  left: unknown,
+  right: unknown,
+): boolean => {
+  const bothStrings = typeof left === 'string' && typeof right === 'string';
+  const a = bothStrings ? left : Number(left);
+  const b = bothStrings ? right : Number(right);
+  switch (operator) {
+    case '>':
+      return a > b;
+    case '<':
+      return a < b;
+    case '>=':
+      return a >= b;
+    default:
+      return a <= b;
   }
 };
 
@@ -101,7 +149,7 @@ const evaluateBinaryExpression = (
   switch (node.operator) {
     case '+':
       return typeof left === 'string' || typeof right === 'string'
-        ? String(left) + String(right)
+        ? concatStrings(String(left), String(right))
         : Number(left) + Number(right);
     case '-':
       return Number(left) - Number(right);
@@ -114,13 +162,10 @@ const evaluateBinaryExpression = (
     case '^':
       return Math.pow(Number(left), Number(right));
     case '>':
-      return Number(left) > Number(right);
     case '<':
-      return Number(left) < Number(right);
     case '>=':
-      return Number(left) >= Number(right);
     case '<=':
-      return Number(left) <= Number(right);
+      return compareValues(node.operator, left, right);
     case '==':
       if (left instanceof Date && right instanceof Date) {
         return left.getTime() === right.getTime();
@@ -180,34 +225,32 @@ const evaluateCallExpression = (
   let func: unknown = null;
   if (node.callee.type === 'Identifier') {
     const funcName = node.callee.name;
-    if (!isPropertyAccessAllowed(funcName, funcName, context)) {
+    const customFunctions = context.options.customFunctions ?? {};
+    // Custom and built-in function names are exempt from the allowlist,
+    // context functions are not
+    const isLibraryFunction =
+      hasOwn(customFunctions, funcName) || hasOwn(builtInFunctions, funcName);
+    if (
+      !isPropertyAccessAllowed(funcName, funcName, context, isLibraryFunction)
+    ) {
       throw createCompilationError(
         `Function '${funcName}' is not allowed by security policy`,
         'FUNCTION_ACCESS_DENIED',
       );
     }
 
-    if (Object.prototype.hasOwnProperty.call(builtInFunctions, funcName)) {
-      const builtin = builtInFunctions[funcName] as (
-        ...args: readonly unknown[]
-      ) => unknown;
-      if (contextPassingFunctions.includes(funcName)) {
-        func = (...funcArgs: unknown[]) => builtin(updatedContext, ...funcArgs);
-      } else {
-        func = builtin;
-      }
-    } else if (
-      context.options.customFunctions &&
-      Object.prototype.hasOwnProperty.call(
-        context.options.customFunctions,
-        funcName,
-      )
-    ) {
-      func = context.options.customFunctions[funcName];
-    } else if (funcName in context.rootContext) {
-      func = context.rootContext[funcName];
-    } else if (funcName in context.localVariables) {
+    // Custom functions take precedence over built-ins with the same name
+    if (hasOwn(customFunctions, funcName)) {
+      func = customFunctions[funcName];
+    } else if (hasOwn(builtInFunctions, funcName)) {
+      const builtin = builtInFunctions[funcName];
+      func = contextPassingFunctions.includes(funcName)
+        ? (...funcArgs: unknown[]) => builtin(updatedContext, ...funcArgs)
+        : builtin;
+    } else if (hasOwn(context.localVariables, funcName)) {
       func = context.localVariables[funcName];
+    } else if (hasOwn(context.rootContext, funcName)) {
+      func = context.rootContext[funcName];
     }
   } else {
     func = evaluateNode(node.callee, updatedContext);
@@ -258,6 +301,7 @@ const evaluateArrayLiteral = (
 const evaluateArrayIndex = (
   node: ArrayIndexNode,
   context: EvaluatorContext,
+  intermediate: boolean,
 ): unknown => {
   if (context.options.enableArrays === false) {
     throw createCompilationError(
@@ -268,7 +312,7 @@ const evaluateArrayIndex = (
     );
   }
 
-  const array = evaluateNode(node.array, context);
+  const array = evaluateNode(node.array, context, true);
   if (array == null) return null;
 
   const index = evaluateNode(node.index, context);
@@ -283,26 +327,20 @@ const evaluateArrayIndex = (
     }
     if (typeof array === 'object') {
       const propertyName = String(index);
-      if (!isPropertyAccessAllowed(propertyName, propertyName, context)) {
+      const objectPath = getPropertyPath(node.array);
+      const fullPath = objectPath
+        ? `${objectPath}.${propertyName}`
+        : propertyName;
+      if (
+        !isPropertyAccessAllowed(propertyName, fullPath, context, intermediate)
+      ) {
         throw createCompilationError(
           `Access to property '${propertyName}' via array index is not allowed by security policy`,
           'PROPERTY_ACCESS_DENIED',
         );
       }
 
-      if (
-        !context.options.allowPrototypeAccess &&
-        !Object.prototype.hasOwnProperty.call(array, propertyName)
-      ) {
-        return null;
-      }
-
-      try {
-        const val = (array as Record<string, unknown>)[propertyName];
-        return val === undefined ? null : val;
-      } catch {
-        return null;
-      }
+      return readProperty(array, propertyName, context);
     }
     return null;
   }
@@ -380,15 +418,14 @@ const evaluateArrowFunction = (
 };
 
 /**
- * Main AST Walker
+ * Main AST Walker. `intermediate` marks nodes evaluated only to reach a child
+ * property, which are exempt from the property allowlist.
  */
 const evaluateNode = (
   node: ExpressionNode,
   context: EvaluatorContext,
+  intermediate = false,
 ): unknown => {
-  // Update complexity count using dynamic reference
-  context.securityContext.nodeCount.value++;
-
   const limitError = checkSecurityLimits(
     context.securityContext,
     context.options,
@@ -406,9 +443,9 @@ const evaluateNode = (
     case 'Literal':
       return evaluateLiteral(node);
     case 'Identifier':
-      return evaluateIdentifier(node, context);
+      return evaluateIdentifier(node, context, intermediate);
     case 'MemberExpression':
-      return evaluateMemberExpression(node, context);
+      return evaluateMemberExpression(node, context, intermediate);
     case 'BinaryExpression':
       return evaluateBinaryExpression(node, context);
     case 'UnaryExpression':
@@ -420,7 +457,7 @@ const evaluateNode = (
     case 'ArrayLiteral':
       return evaluateArrayLiteral(node, context);
     case 'ArrayIndex':
-      return evaluateArrayIndex(node, context);
+      return evaluateArrayIndex(node, context, intermediate);
     case 'TemplateLiteral':
       return evaluateTemplateLiteral(node, context);
     case 'ArrowFunction':
@@ -445,28 +482,11 @@ export const evaluateAST = (
   source: string,
   options: ExpressionOptions,
 ): CompiledExpression => {
+  // Compile property patterns once; throws INVALID_REGEX_PATTERN on bad input
+  const compiledAllowedProperties = compilePatterns(options.allowedProperties);
+  const compiledDeniedProperties = compilePatterns(options.deniedProperties);
+
   const evaluate = (context: Record<string, unknown> = {}): unknown => {
-    let compiledAllowedProperties: RegExp[] = [];
-    let compiledDeniedProperties: RegExp[] = [];
-
-    try {
-      if (options.allowedProperties) {
-        compiledAllowedProperties = options.allowedProperties.map(
-          (p) => new RegExp(anchorPattern(p)),
-        );
-      }
-      if (options.deniedProperties) {
-        compiledDeniedProperties = options.deniedProperties.map(
-          (p) => new RegExp(anchorPattern(p)),
-        );
-      }
-    } catch (e: unknown) {
-      throw createCompilationError(
-        `Invalid RegExp pattern in security options: ${e instanceof Error ? e.message : String(e)}`,
-        'INVALID_REGEX_PATTERN',
-      );
-    }
-
     const evaluatorContext: EvaluatorContext = {
       options,
       securityContext: createSecurityContext(),
@@ -474,9 +494,6 @@ export const evaluateAST = (
       localVariables: {},
       compiledAllowedProperties,
       compiledDeniedProperties,
-      allowedPropertyStrings: options.allowedProperties
-        ? [...options.allowedProperties]
-        : [],
     };
 
     try {

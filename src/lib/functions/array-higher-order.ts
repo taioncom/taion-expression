@@ -1,4 +1,5 @@
 import { checkSecurityLimits, EvaluatorContext } from '../security.js';
+import { setOwnProperty } from './object-functions.js';
 
 /**
  * Higher-order array functions that need EvaluatorContext for security limits.
@@ -443,7 +444,9 @@ export const arrayHigherOrderFunctions: Record<
         );
         if (limitError) throw limitError;
         const key = String(keyFn(array[i]));
-        if (!result[key]) result[key] = [];
+        if (!Object.prototype.hasOwnProperty.call(result, key)) {
+          setOwnProperty(result, key, []);
+        }
         result[key].push(array[i]);
       }
       return result;

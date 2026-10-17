@@ -30,10 +30,16 @@ This means expressions can only do what the interpreter explicitly allows.
 |-------|-----------|---------|
 | [Property Access Control](./property-access.md) | Allowlist/denylist for property names | Prototype blocked |
 | [Timeout](./resource-limits.md) | Maximum execution time | 1000ms |
-| [Complexity Limit](./resource-limits.md) | Maximum AST nodes | 100 |
+| [Expression Length](./resource-limits.md) | Maximum source length in characters | 10000 |
+| [Complexity Limit](./resource-limits.md) | Maximum AST nodes (checked at compile time) | 100 |
 | [Call Stack Depth](./resource-limits.md) | Maximum function nesting | 50 |
 | [Loop Iterations](./resource-limits.md) | Maximum iterations in array functions | 10000 |
-| Feature Toggles | Disable arrays, template strings, arrow functions | Arrays on; template strings and arrow functions off |
+| Feature Toggles | Disable arrays, template strings, arrow functions (checked at compile time) | Arrays on; template strings and arrow functions off |
+| [Size Caps](./resource-limits.md#built-in-size-caps) | Fixed caps on string length, `repeat`/`split`/`range` sizes and regex patterns | Always on |
+
+## What Property Access Control Is Not
+
+The property policy controls which names and paths an expression may reference. It is **not** data redaction: if an expression can reference an object, functions such as `values`, `entries`, `keys` and `jsonStringify` receive the whole object. Don't put data in the context that expressions must never see.
 
 ## Recommended Configuration
 

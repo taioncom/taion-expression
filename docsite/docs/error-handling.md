@@ -4,7 +4,9 @@ sidebar_position: 6
 
 # Error Handling
 
-The expression evaluator never throws. Instead, all functions return result objects with a `success` field.
+`compileExpression` and `evaluateExpression` never throw. Instead, they return result objects with a `success` field.
+
+The `evaluate()` method of a `CompiledExpression` does throw on runtime errors (with the same error codes), so wrap it in `try`/`catch` or use `evaluateExpression`.
 
 ## Result Types
 
@@ -53,38 +55,42 @@ type CompileResult = CompileSuccess | CompileFailure;
 |------|-------|
 | `TOKENIZE_ERROR` | Invalid character or malformed token in the expression |
 
-### Parse Errors
+### Parse Errors (`errorType: "ParseError"`)
 
 | Code | Cause |
 |------|-------|
 | `PARSE_ERROR` | Syntax error in the expression |
 | `PARSE_FAILED` | Parser could not produce an AST |
+| `MAX_EXPRESSION_LENGTH_EXCEEDED` | Expression source is longer than `maxExpressionLength` |
+| `MAX_NESTING_EXCEEDED` | Expression is nested too deeply to parse |
 
-### Compilation Errors
+### Compilation Errors (`errorType: "CompilationError"`)
 
-| Code | Cause |
-|------|-------|
-| `COMPILE_ERROR` | Error during AST interpretation setup |
-| `COMPILE_FAILED` | AST interpretation setup failed |
-
-### Evaluation Errors
+These are detected after parsing, before the expression is evaluated.
 
 | Code | Cause |
 |------|-------|
-| `EVALUATION_ERROR` | General runtime error |
-| `EVAL_ERROR` | General evaluation failure |
-| `TIMEOUT_EXCEEDED` | Execution exceeded the timeout limit |
-| `MAX_CALL_STACK_EXCEEDED` | Function call nesting too deep |
-| `MAX_COMPLEXITY_EXCEEDED` | Expression AST has too many nodes |
-| `MAX_LOOP_ITERATIONS_EXCEEDED` | Array function iterations exceeded the limit |
-| `PROPERTY_ACCESS_DENIED` | Property access blocked by security policy |
-| `FUNCTION_ACCESS_DENIED` | Function call blocked by security policy |
+| `MAX_COMPLEXITY_EXCEEDED` | Expression AST has more nodes than `maxComplexity` |
 | `ARRAY_FEATURE_DISABLED` | Array syntax used but `enableArrays` is false |
 | `TEMPLATE_STRINGS_DISABLED` | Template string used but `enableTemplateStrings` is false |
 | `ARROW_FUNCTIONS_DISABLED` | Arrow function used but `enableArrowFunctions` is false |
+| `INVALID_REGEX_PATTERN` | Invalid regex in `allowedProperties`/`deniedProperties` |
+| `COMPILE_ERROR` | Other error while setting up evaluation |
+
+### Evaluation Errors (`errorType: "EvaluationError"`)
+
+| Code | Cause |
+|------|-------|
+| `EVALUATION_FAILED` | Unexpected runtime error (wrapped) |
+| `EVALUATION_ERROR` | A non-`Error` value was thrown during evaluation |
+| `TIMEOUT_EXCEEDED` | Execution exceeded the timeout limit |
+| `MAX_CALL_STACK_EXCEEDED` | Function call nesting too deep |
+| `MAX_LOOP_ITERATIONS_EXCEEDED` | Array function iterations exceeded the limit |
+| `MAX_STRING_LENGTH_EXCEEDED` | String concatenation with `+` produced more than 1,000,000 characters |
+| `PROPERTY_ACCESS_DENIED` | Property access blocked by security policy |
+| `FUNCTION_ACCESS_DENIED` | Function call blocked by security policy |
 | `UNSUPPORTED_FUNCTION_CALL` | Dynamic function reference not allowed |
 | `UNKNOWN_NODE_TYPE` | Unknown AST node encountered |
-| `INVALID_REGEX_PATTERN` | Invalid regex in allowedProperties/deniedProperties |
 
 ## Error Object
 

@@ -195,8 +195,25 @@ describe('Parser coverage', () => {
 });
 
 describe('Evaluator coverage - function calls', () => {
-  test('function call denied by security allowedProperties', () => {
+  test('built-in function names are exempt from allowedProperties', () => {
     const result = evaluateExpression('abs(5)', {}, {
+      allowedProperties: ['x'],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test('function call denied by security deniedProperties', () => {
+    const result = evaluateExpression('abs(5)', {}, {
+      deniedProperties: ['abs'],
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.errorCode).toBe('FUNCTION_ACCESS_DENIED');
+    }
+  });
+
+  test('context function not in allowedProperties is denied', () => {
+    const result = evaluateExpression('run()', { run: () => 1 }, {
       allowedProperties: ['x'],
     });
     expect(result.success).toBe(false);

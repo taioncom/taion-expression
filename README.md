@@ -24,7 +24,7 @@ Since expressions can be written by external users, the language is designed to 
 ### Data Types
 
 - **Number**: Integer and floating-point numbers (e.g., `42`, `3.14`)
-- **String**: Text enclosed in single, double quotes, or backticks (e.g., `"hello"`, `'world'`, `` `template` ``)
+- **String**: Text enclosed in single or double quotes (e.g., `"hello"`, `'world'`). Backtick strings (`` `template` ``) are template literals and require `enableTemplateStrings: true`
 - **Boolean**: `true` or `false`
 - **Null**: `null`
 - **Array**: Ordered collection of values (e.g., `[1, 2, 3]`)
@@ -61,6 +61,8 @@ settings.enabled
 - Greater than or equal: `>=`
 - Less than or equal: `<=`
 
+`<`, `<=`, `>`, `>=` compare two strings alphabetically; otherwise both sides are converted to numbers.
+
 #### Logical Operators
 
 - AND: `&&` or `and`
@@ -89,13 +91,14 @@ When the `enableArrowFunctions` option is enabled, you can use arrow functions (
 Operators are evaluated in the following order (from highest to lowest precedence):
 
 1. Parentheses `()`
-2. Exponentiation `^`
+2. Exponentiation `^` (right-associative: `-2 ^ 2` is -4, `2 ^ 3 ^ 2` is 512)
 3. Unary operators `+`, `-`, `!`/`not`
 4. Multiplication, division, modulo `*`, `/`, `%`
 5. Addition, subtraction `+`, `-`
-6. Comparison operators `<`, `<=`, `>`, `>=`, `==`/`=`, `!=`
-7. Logical AND `&&`/`and`
-8. Logical OR `||`/`or`
+6. Comparison operators `<`, `<=`, `>`, `>=`
+7. Equality operators `==`/`=`, `!=`
+8. Logical AND `&&`/`and`
+9. Logical OR `||`/`or`
 
 ### Control Flow
 
@@ -113,10 +116,10 @@ The if-then-else expression allows for conditional logic:
 if (condition) then expression1 else expression2
 ```
 
-- `condition` must evaluate to a boolean value
-- `expression1` is evaluated if the condition is true
-- `expression2` is evaluated if the condition is false
-- Both `expression1` and `expression2` must be of the same type
+- `condition` uses JavaScript truthiness: `false`, `null`, `0`, `NaN` and `""` are falsy, everything else is truthy
+- `expression1` is evaluated if the condition is truthy
+- `expression2` is evaluated otherwise
+- The branches may return values of different types
 
 Example:
 
@@ -208,7 +211,7 @@ The language includes several safe built-in functions:
 
 ##### Type Checking
 
-- `type(value)`: Returns `'number'`, `'string'`, `'boolean'`, `'array'`, `'object'`, `'date'`, or `'null'`
+- `type(value)`: Returns `'number'`, `'string'`, `'boolean'`, `'array'`, `'object'`, `'date'`, `'null'`, or another `typeof` result such as `'undefined'`
 - `isNull(value)`, `isUndefined(value)`, `isDefined(value)`, `isNumber(value)`, `isString(value)`
 - `isBoolean(value)`, `isObject(value)`, `isArray(value)`, `isDate(value)`, `isEmpty(value)`
 
@@ -231,6 +234,7 @@ The language includes several safe built-in functions:
 ##### Regex
 
 - `regexTest(str, pattern)`, `regexMatch(str, pattern)`, `regexReplace(str, pattern, replacement)`
+- Patterns longer than 200 characters or containing nested quantifiers (e.g. `(a+)+`) or backreferences are rejected (result `false` / `null` / input unchanged), as are inputs over 100000 characters. This is a ReDoS heuristic, not a guarantee.
 
 ##### Date Functions
 
@@ -278,6 +282,8 @@ const options = {
 };
 ```
 
+Denied patterns apply to context variables, dot and bracket access, and function names. The allowlist applies to values read out of the context; path segments used only to reach a child, and built-in/custom function names, are exempt. An empty allowlist allows everything. This is access control, not data redaction: functions like `values` or `jsonStringify` see whole objects the expression can reference.
+
 ### Timeout Control
 
 Prevent infinite loops and expensive calculations by setting a maximum execution time:
@@ -306,11 +312,13 @@ const options = { maxCallStackDepth: 50 }; // Default
 
 ### Expression Complexity Limiting
 
-Limit the complexity of expressions to prevent resource exhaustion:
+Limit the size of expressions to prevent resource exhaustion. `maxComplexity` is the maximum number of AST nodes and `maxExpressionLength` the maximum source length; both are checked at compile time:
 
 ```javascript
-const options = { maxComplexity: 100 }; // Default
+const options = { maxComplexity: 100, maxExpressionLength: 10000 }; // Defaults
 ```
+
+Strings produced by expressions are capped at 1,000,000 characters.
 
 ### Loop Iteration Limiting
 
@@ -494,7 +502,7 @@ import {
 // Using the standard evaluator with error handling
 const result = evaluateExpression('1 + / 2');
 if (!result.success) {
-  console.error(result.error.message); // "Unexpected token '/' after expression"
+  console.error(result.error.message); // "Unexpected token '/' at line 1, column 5"
 }
 
 // Using the safe evaluator which returns null on error

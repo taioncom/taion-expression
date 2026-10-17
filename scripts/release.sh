@@ -82,7 +82,6 @@ echo "Version to release: $VERSION"
 # ── Step 2: Changelog ──────────────────────────────────────────────
 
 CHANGELOG_ENTRY=""
-TODAY="$(date +%Y-%m-%d)"
 
 echo ""
 echo "Would you like to add a changelog entry?"
@@ -107,15 +106,23 @@ case "$CHANGELOG_CHOICE" in
     if [[ -z "$CHANGELOG_ENTRY" ]]; then
       echo "No text entered, keeping existing CHANGELOG.md."
     else
-      CHANGELOG_HEADER="## [$VERSION] - $TODAY
+      CHANGELOG_HEADER="## $VERSION
 
 $CHANGELOG_ENTRY"
 
       if [[ -f CHANGELOG.md ]]; then
-        EXISTING="$(cat CHANGELOG.md)"
-        printf '%s\n\n%s\n' "$CHANGELOG_HEADER" "$EXISTING" > CHANGELOG.md
+        # Insert the new section before the first "## " heading, below the "# Changelog" title
+        ENTRY_FILE="$(mktemp)"
+        printf '%s' "$CHANGELOG_HEADER" > "$ENTRY_FILE"
+        awk -v entry_file="$ENTRY_FILE" '
+          !inserted && /^## / { while ((getline l < entry_file) > 0) print l; print ""; inserted = 1 }
+          { print }
+          END { if (!inserted) { print ""; while ((getline l < entry_file) > 0) print l } }
+        ' CHANGELOG.md > CHANGELOG.md.tmp
+        mv CHANGELOG.md.tmp CHANGELOG.md
+        rm -f "$ENTRY_FILE"
       else
-        printf '# Changelog\n\n%s\n' "$CHANGELOG_HEADER" > CHANGELOG.md
+        printf '# Changelog\n\n%s' "$CHANGELOG_HEADER" > CHANGELOG.md
       fi
       echo "Updated CHANGELOG.md."
     fi
@@ -128,6 +135,13 @@ $CHANGELOG_ENTRY"
     exit 1
     ;;
 esac
+
+# ── Sync changelog to docsite ─────────────────────────────────────
+if [[ -f CHANGELOG.md ]]; then
+  printf -- '---\nsidebar_position: 99\n---\n\n' > docsite/docs/changelog.md
+  cat CHANGELOG.md >> docsite/docs/changelog.md
+  echo "Synced CHANGELOG.md to docsite."
+fi
 
 # ── Step 3: Confirmation ──────────────────────────────────────────
 
@@ -204,7 +218,7 @@ echo "Build and tests passed."
 # ── Commit, tag, publish ────────────────────────────────────────────
 
 if $HAS_CHANGES; then
-  git add package.json CHANGELOG.md
+  git add package.json CHANGELOG.md docsite/docs/changelog.md
   git commit -m "release: v$VERSION"
 fi
 

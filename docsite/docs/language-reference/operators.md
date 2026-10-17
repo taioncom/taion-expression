@@ -30,7 +30,9 @@ The `+` operator also concatenates strings: `"Hello" + " World"` produces `"Hell
 | `>=`     | Greater than or equal | `5 >= 5`   | `true`  |
 | `<=`     | Less than or equal    | `3 <= 5`   | `true`  |
 
-Comparison operators return boolean values. Equality uses strict comparison (`===` semantics) -- no type coercion is performed.
+Comparison operators return boolean values. Equality uses strict comparison (`===` semantics) -- no type coercion is performed. Two dates are equal when they represent the same time.
+
+`>`, `<`, `>=` and `<=` compare two strings alphabetically (`"apple" < "banana"` is `true`); in all other cases both sides are converted to numbers, so dates compare by time.
 
 ## Logical Operators
 
@@ -49,13 +51,24 @@ Operators are evaluated in this order (highest precedence first):
 | Precedence | Operators            | Description                    |
 |-----------|----------------------|--------------------------------|
 | 1         | `()`                 | Parentheses (grouping)         |
-| 2         | `^`                  | Exponentiation                 |
+| 2         | `^`                  | Exponentiation (right-associative) |
 | 3         | `+` `-` `!`/`not` (unary) | Unary operators           |
 | 4         | `*` `/` `%`          | Multiplication, division, modulo |
 | 5         | `+` `-`              | Addition, subtraction          |
-| 6         | `<` `<=` `>` `>=` `==`/`=` `!=` | Comparison         |
-| 7         | `&&`/`and`           | Logical AND                    |
-| 8         | `\|\|`/`or`          | Logical OR                     |
+| 6         | `<` `<=` `>` `>=`    | Comparison                     |
+| 7         | `==`/`=` `!=`        | Equality                       |
+| 8         | `&&`/`and`           | Logical AND                    |
+| 9         | `\|\|`/`or`          | Logical OR                     |
+
+`^` binds tighter than unary minus and groups from the right, following math convention:
+
+```
+-2 ^ 2      // -4
+2 ^ 3 ^ 2   // 512, same as 2 ^ (3 ^ 2)
+2 ^ -1      // 0.5
+```
+
+Equality is below comparison, so `a < b == c < d` compares the two comparison results.
 
 Use parentheses to override precedence:
 

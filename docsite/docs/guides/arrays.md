@@ -102,7 +102,7 @@ percentile([1, 2, 3, 4, 5], 90) // 4.6
 
 ### Higher-Order Functions
 
-These require `enableArrowFunctions: true`:
+These take a function argument. Writing it as an arrow function, as below, requires `enableArrowFunctions: true`:
 
 ```
 map(numbers, x => x * 2)

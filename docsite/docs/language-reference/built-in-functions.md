@@ -16,21 +16,21 @@ The expression language includes a large set of built-in functions organized by 
 | `endsWith`    | `endsWith(str, suffix)`             | Returns `true` if `str` ends with `suffix`                                                 |
 | `toLowerCase` | `toLowerCase(str)`                  | Converts to lowercase                                                                      |
 | `toUpperCase` | `toUpperCase(str)`                  | Converts to uppercase                                                                      |
-| `substring`   | `substring(str, start, end)`        | Extracts characters between `start` and `end` indices                                      |
+| `substring`   | `substring(str, start, end?)`       | Extracts characters between `start` and `end` indices (`end` defaults to the string length) |
 | `trim`        | `trim(str)`                         | Removes leading and trailing whitespace                                                    |
 | `trimStart`   | `trimStart(str)`                    | Removes leading whitespace                                                                 |
 | `trimEnd`     | `trimEnd(str)`                      | Removes trailing whitespace                                                                |
 | `replace`     | `replace(str, search, replacement)` | Replaces all occurrences of `search` with `replacement`                                    |
-| `split`       | `split(str, separator)`             | Splits a string into an array by `separator`                                               |
+| `split`       | `split(str, separator)`             | Splits a string into an array by `separator` (at most 10000 pieces)                        |
 | `indexOf`     | `indexOf(str, search)`              | Returns the index of `search` in `str`, or `-1` if not found                               |
 | `lastIndexOf` | `lastIndexOf(str, search)`          | Returns the last index of `search` in `str`, or `-1` if not found                          |
 | `capitalize`  | `capitalize(str, allWords?)`        | Capitalizes the first letter and lowercases the rest. Pass `true` to capitalize every word |
-| `padLeft`     | `padLeft(value, len, pad?)`         | Pads the start of the string to `len` with `pad` (default: space)                          |
-| `padRight`    | `padRight(value, len, pad?)`        | Pads the end of the string to `len` with `pad` (default: space)                            |
-| `repeat`      | `repeat(str, n)`                    | Repeats a string `n` times. Returns empty string for invalid `n`.                          |
+| `padLeft`     | `padLeft(value, len, pad?)`         | Pads the start of the string to `len` with `pad` (default: space). Returns the input unpadded if `len` exceeds 1,000,000 |
+| `padRight`    | `padRight(value, len, pad?)`        | Pads the end of the string to `len` with `pad` (default: space). Returns the input unpadded if `len` exceeds 1,000,000 |
+| `repeat`      | `repeat(str, n)`                    | Repeats a string `n` times. Returns empty string for invalid `n`, `n` over 10000, or a result over 1,000,000 characters. |
 | `charAt`      | `charAt(str, index)`                | Returns the character at `index`, or empty string if out of bounds                         |
 | `includes`    | `includes(strOrArray, search)`      | Returns `true` if the string or array includes `search`                                    |
-| `concat`      | `concat(...values)`                 | Concatenates all arguments into a string. Null/undefined values become empty strings.      |
+| `concat`      | `concat(...values)`                 | Concatenates all arguments into a string. Null/undefined values become empty strings. Returns empty string if the result would exceed 1,000,000 characters. |
 
 ```
 toUpperCase("hello")              // "HELLO"
@@ -132,18 +132,18 @@ atan2(1, 1)      // 0.7853... (pi/4)
 | `length`        | `length(array)`               | Returns the number of elements                           |
 | `sum`           | `sum(array)`                  | Sums all numeric elements                                |
 | `avg`           | `avg(array)`                  | Returns the average of numeric elements                  |
-| `count`         | `count(array)`                | Returns the number of elements (alias for `length`)      |
+| `count`         | `count(array)`                | Returns the number of elements; `0` for non-arrays (unlike `length`, does not count string characters) |
 | `arrayContains` | `arrayContains(array, value)` | Returns `true` if the array includes `value`             |
 | `first`         | `first(array)`                | Returns the first element, or `null` if empty            |
 | `last`          | `last(array)`                 | Returns the last element, or `null` if empty             |
-| `join`          | `join(array, separator)`      | Joins elements into a string                             |
+| `join`          | `join(array, separator)`      | Joins elements into a string. Returns empty string if the result would exceed 1,000,000 characters |
 | `sort`          | `sort(array)`                 | Returns a sorted copy                                    |
 | `reverse`       | `reverse(array)`              | Returns a reversed copy                                  |
 | `slice`         | `slice(array, start, end?)`   | Returns a shallow copy from `start` to `end` (exclusive) |
 | `unique`        | `unique(array)`               | Returns a new array with duplicates removed              |
 | `compact`       | `compact(array)`              | Removes `null`, `undefined`, and empty string values     |
 | `flat`          | `flat(array, depth?)`         | Flattens nested arrays by `depth` levels (default: 1)    |
-| `range`         | `range(start, end, step?)`    | Generates a number sequence from `start` to `end` (exclusive) |
+| `range`         | `range(start, end, step?)`    | Generates a number sequence from `start` to `end` (exclusive), at most 10000 elements |
 | `chunk`         | `chunk(array, size)`          | Splits an array into chunks of `size`                    |
 | `zip`           | `zip(arr1, arr2)`             | Pairs elements from two arrays                           |
 
@@ -280,11 +280,11 @@ fromEntries([["a", 1], ["b", 2]])  // {a: 1, b: 2}
 
 | Function      | Signature            | Description                                                                                                  |
 | ------------- | -------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `type`        | `type(value)`        | Returns the type as a string: `"number"`, `"string"`, `"boolean"`, `"array"`, `"object"`, `"date"`, `"null"` |
+| `type`        | `type(value)`        | Returns the type as a string: `"number"`, `"string"`, `"boolean"`, `"array"`, `"object"`, `"date"`, `"null"`, or another `typeof` result such as `"undefined"` or `"function"` |
 | `isNull`      | `isNull(value)`      | Returns `true` if the value is `null`                                                                        |
 | `isUndefined` | `isUndefined(value)` | Returns `true` if the value is `undefined`                                                                   |
 | `isDefined`   | `isDefined(value)`   | Returns `true` if the value is not `null` and not `undefined`                                                |
-| `isNumber`    | `isNumber(value)`    | Returns `true` if the value is a number                                                                      |
+| `isNumber`    | `isNumber(value)`    | Returns `true` if the value is a number other than `NaN`                                                     |
 | `isString`    | `isString(value)`    | Returns `true` if the value is a string                                                                      |
 | `isBoolean`   | `isBoolean(value)`   | Returns `true` if the value is a boolean                                                                     |
 | `isObject`    | `isObject(value)`    | Returns `true` if the value is a plain object (not array, not null, not Date)                                |
@@ -373,7 +373,9 @@ randomInt(0, 1)    // 0 or 1
 | `regexMatch`   | `regexMatch(str, pattern)`                | Returns the first match of `pattern` in `str`, or `null` |
 | `regexReplace` | `regexReplace(str, pattern, replacement)` | Replaces all matches of `pattern` with `replacement`     |
 
-Patterns are standard regex strings. Invalid patterns return `false`/`null` instead of throwing.
+Patterns are standard regex strings. Invalid or rejected patterns make `regexTest` return `false`, `regexMatch` return `null` and `regexReplace` return the input string unchanged, instead of throwing.
+
+To protect against catastrophic backtracking (ReDoS), patterns are rejected if they are longer than 200 characters or contain nested quantifiers (e.g. `(a+)+`) or backreferences (e.g. `\\1`), and inputs longer than 100000 characters are not matched. This check is a heuristic, not a guarantee.
 
 ```
 regexTest("hello123", "\\d+")                     // true
@@ -436,7 +438,8 @@ timestamp(now())                // 1710500000000 (varies)
 ```
 formatDate(date(2024, 3, 15))                        // "2024-03-15"
 formatDate(date(2024, 3, 15, 10, 30), "HH:mm dd/MM") // "10:30 15/03"
-toISOString(date(2024, 3, 15))                        // "2024-03-15T00:00:00.000Z" (UTC)
+toISOString(parseDate("2024-03-15T00:00:00Z"))       // "2024-03-15T00:00:00.000Z"
+// date() builds local time, so toISOString(date(2024, 3, 15)) depends on the timezone
 ```
 
 ### Arithmetic

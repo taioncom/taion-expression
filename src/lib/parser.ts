@@ -198,256 +198,84 @@ const parseConditional = (
   return parseIfThenElse(ifState, expr.location);
 };
 
-const parseLogicalOr = (
-  state: ParserState,
-): readonly [Error | null, ParserState, ExpressionNode | null] => {
-  const parseBinaryExpression = (
-    currentState: ParserState,
-    left: ExpressionNode,
-  ): readonly [Error | null, ParserState, ExpressionNode] => {
-    const [matched, newState] = match(currentState, [TokenType.OR]);
-    if (!matched) return [null, currentState, left] as const;
+/** Result of a parse step: error, state after parsing, and the parsed node */
+type ParseResult = readonly [Error | null, ParserState, ExpressionNode | null];
 
-    const [error, rightState, right] = parseLogicalAnd(newState);
-    if (error || !right) return [error, rightState, left] as const;
+/**
+ * Build a parser for one left-associative binary precedence level.
+ * Operator chains are consumed iteratively so long chains like `a + b + c + ...`
+ * don't grow the call stack.
+ */
+const parseLeftAssociative =
+  (
+    operators: Readonly<Partial<Record<TokenType, string>>>,
+    parseOperand: (state: ParserState) => ParseResult,
+  ) =>
+  (state: ParserState): ParseResult => {
+    const types = Object.keys(operators) as readonly TokenType[];
+    const [error, firstState, first] = parseOperand(state);
+    if (error || !first) return [error, firstState, null] as const;
 
-    const binaryExpr: BinaryExpressionNode = {
-      type: 'BinaryExpression',
-      operator: '||',
-      left,
-      right,
-      location: left.location,
-    };
+    let current = firstState;
+    let left: ExpressionNode = first;
+    for (;;) {
+      const [matched, operatorState] = match(current, types);
+      if (!matched) return [null, current, left] as const;
 
-    return parseBinaryExpression(rightState, binaryExpr);
+      const operator = operators[previous(operatorState).type] as string;
+      const [rightError, rightState, right] = parseOperand(operatorState);
+      if (rightError || !right) return [rightError, rightState, left] as const;
+
+      const binaryExpr: BinaryExpressionNode = {
+        type: 'BinaryExpression',
+        operator,
+        left,
+        right,
+        location: left.location,
+      };
+      left = binaryExpr;
+      current = rightState;
+    }
   };
 
-  const [error, current, left] = parseLogicalAnd(state);
-  if (error || !left) return [error, current, null] as const;
+const parseFactor = parseLeftAssociative(
+  {
+    [TokenType.MULTIPLY]: '*',
+    [TokenType.DIVIDE]: '/',
+    [TokenType.MODULO]: '%',
+  },
+  (s) => parseUnary(s),
+);
 
-  return parseBinaryExpression(current, left);
-};
+const parseTerm = parseLeftAssociative(
+  { [TokenType.PLUS]: '+', [TokenType.MINUS]: '-' },
+  parseFactor,
+);
 
-const parseLogicalAnd = (
-  state: ParserState,
-): readonly [Error | null, ParserState, ExpressionNode | null] => {
-  const parseBinaryExpression = (
-    currentState: ParserState,
-    left: ExpressionNode,
-  ): readonly [Error | null, ParserState, ExpressionNode] => {
-    const [matched, newState] = match(currentState, [TokenType.AND]);
-    if (!matched) return [null, currentState, left] as const;
+const parseComparison = parseLeftAssociative(
+  {
+    [TokenType.LESS]: '<',
+    [TokenType.GREATER]: '>',
+    [TokenType.LESS_EQUAL]: '<=',
+    [TokenType.GREATER_EQUAL]: '>=',
+  },
+  parseTerm,
+);
 
-    const [error, rightState, right] = parseEquality(newState);
-    if (error || !right) return [error, rightState, left] as const;
+const parseEquality = parseLeftAssociative(
+  { [TokenType.EQUAL]: '==', [TokenType.NOT_EQUAL]: '!=' },
+  parseComparison,
+);
 
-    const binaryExpr: BinaryExpressionNode = {
-      type: 'BinaryExpression',
-      operator: '&&',
-      left,
-      right,
-      location: left.location,
-    };
+const parseLogicalAnd = parseLeftAssociative(
+  { [TokenType.AND]: '&&' },
+  parseEquality,
+);
 
-    return parseBinaryExpression(rightState, binaryExpr);
-  };
-
-  const [error, current, left] = parseEquality(state);
-  if (error || !left) return [error, current, null] as const;
-
-  return parseBinaryExpression(current, left);
-};
-
-const parseEquality = (
-  state: ParserState,
-): readonly [Error | null, ParserState, ExpressionNode | null] => {
-  const parseBinaryExpression = (
-    currentState: ParserState,
-    left: ExpressionNode,
-  ): readonly [Error | null, ParserState, ExpressionNode] => {
-    const [matched, newState] = match(currentState, [
-      TokenType.EQUAL,
-      TokenType.NOT_EQUAL,
-    ]);
-    if (!matched) return [null, currentState, left] as const;
-
-    const operator = previous(newState).type === TokenType.EQUAL ? '==' : '!=';
-
-    const [error, rightState, right] = parseComparison(newState);
-    if (error || !right) return [error, rightState, left] as const;
-
-    const binaryExpr: BinaryExpressionNode = {
-      type: 'BinaryExpression',
-      operator,
-      left,
-      right,
-      location: left.location,
-    };
-
-    return parseBinaryExpression(rightState, binaryExpr);
-  };
-
-  const [error, current, left] = parseComparison(state);
-  if (error || !left) return [error, current, null] as const;
-
-  return parseBinaryExpression(current, left);
-};
-
-const parseComparison = (
-  state: ParserState,
-): readonly [Error | null, ParserState, ExpressionNode | null] => {
-  const parseBinaryExpression = (
-    currentState: ParserState,
-    left: ExpressionNode,
-  ): readonly [Error | null, ParserState, ExpressionNode] => {
-    const [matched, newState] = match(currentState, [
-      TokenType.LESS,
-      TokenType.GREATER,
-      TokenType.LESS_EQUAL,
-      TokenType.GREATER_EQUAL,
-    ]);
-    if (!matched) return [null, currentState, left] as const;
-
-    const prevToken = previous(newState);
-    const operator =
-      prevToken.type === TokenType.LESS
-        ? '<'
-        : prevToken.type === TokenType.GREATER
-          ? '>'
-          : prevToken.type === TokenType.LESS_EQUAL
-            ? '<='
-            : prevToken.type === TokenType.GREATER_EQUAL
-              ? '>='
-              : '';
-
-    const [error, rightState, right] = parseTerm(newState);
-    if (error || !right) return [error, rightState, left] as const;
-
-    const binaryExpr: BinaryExpressionNode = {
-      type: 'BinaryExpression',
-      operator,
-      left,
-      right,
-      location: left.location,
-    };
-
-    return parseBinaryExpression(rightState, binaryExpr);
-  };
-
-  const [error, current, left] = parseTerm(state);
-  if (error || !left) return [error, current, null] as const;
-
-  return parseBinaryExpression(current, left);
-};
-
-const parseTerm = (
-  state: ParserState,
-): readonly [Error | null, ParserState, ExpressionNode | null] => {
-  const parseBinaryExpression = (
-    currentState: ParserState,
-    left: ExpressionNode,
-  ): readonly [Error | null, ParserState, ExpressionNode] => {
-    const [matched, newState] = match(currentState, [
-      TokenType.PLUS,
-      TokenType.MINUS,
-    ]);
-    if (!matched) return [null, currentState, left] as const;
-
-    const operator = previous(newState).type === TokenType.PLUS ? '+' : '-';
-
-    const [error, rightState, right] = parseFactor(newState);
-    if (error || !right) return [error, rightState, left] as const;
-
-    const binaryExpr: BinaryExpressionNode = {
-      type: 'BinaryExpression',
-      operator,
-      left,
-      right,
-      location: left.location,
-    };
-
-    return parseBinaryExpression(rightState, binaryExpr);
-  };
-
-  const [error, current, left] = parseFactor(state);
-  if (error || !left) return [error, current, null] as const;
-
-  return parseBinaryExpression(current, left);
-};
-
-const parseFactor = (
-  state: ParserState,
-): readonly [Error | null, ParserState, ExpressionNode | null] => {
-  const parseBinaryExpression = (
-    currentState: ParserState,
-    left: ExpressionNode,
-  ): readonly [Error | null, ParserState, ExpressionNode] => {
-    const [matched, newState] = match(currentState, [
-      TokenType.MULTIPLY,
-      TokenType.DIVIDE,
-      TokenType.MODULO,
-    ]);
-    if (!matched) return [null, currentState, left] as const;
-
-    const prevToken = previous(newState);
-    const operator =
-      prevToken.type === TokenType.MULTIPLY
-        ? '*'
-        : prevToken.type === TokenType.DIVIDE
-          ? '/'
-          : prevToken.type === TokenType.MODULO
-            ? '%'
-            : '';
-
-    const [error, rightState, right] = parsePower(newState);
-    if (error || !right) return [error, rightState, left] as const;
-
-    const binaryExpr: BinaryExpressionNode = {
-      type: 'BinaryExpression',
-      operator,
-      left,
-      right,
-      location: left.location,
-    };
-
-    return parseBinaryExpression(rightState, binaryExpr);
-  };
-
-  const [error, current, left] = parsePower(state);
-  if (error || !left) return [error, current, null] as const;
-
-  return parseBinaryExpression(current, left);
-};
-
-const parsePower = (
-  state: ParserState,
-): readonly [Error | null, ParserState, ExpressionNode | null] => {
-  const parseBinaryExpression = (
-    currentState: ParserState,
-    left: ExpressionNode,
-  ): readonly [Error | null, ParserState, ExpressionNode] => {
-    const [matched, newState] = match(currentState, [TokenType.POWER]);
-    if (!matched) return [null, currentState, left] as const;
-
-    const [error, rightState, right] = parseUnary(newState);
-    if (error || !right) return [error, rightState, left] as const;
-
-    const binaryExpr: BinaryExpressionNode = {
-      type: 'BinaryExpression',
-      operator: '^',
-      left,
-      right,
-      location: left.location,
-    };
-
-    return parseBinaryExpression(rightState, binaryExpr);
-  };
-
-  const [error, current, left] = parseUnary(state);
-  if (error || !left) return [error, current, null] as const;
-
-  return parseBinaryExpression(current, left);
-};
+const parseLogicalOr = parseLeftAssociative(
+  { [TokenType.OR]: '||' },
+  parseLogicalAnd,
+);
 
 const parseUnary = (
   state: ParserState,
@@ -457,7 +285,7 @@ const parseUnary = (
     TokenType.NOT,
     TokenType.PLUS,
   ]);
-  if (!matched) return parseCall(state);
+  if (!matched) return parsePower(state);
 
   const token = previous(newState);
   const operator =
@@ -480,6 +308,32 @@ const parseUnary = (
   };
 
   return [null, rightState, unaryExpr] as const;
+};
+
+/**
+ * Parse exponentiation. `^` binds tighter than unary operators and is
+ * right-associative: `-2 ^ 2` is -4 and `2 ^ 3 ^ 2` is 512. The exponent may
+ * carry its own sign, as in `2 ^ -1`.
+ */
+const parsePower = (state: ParserState): ParseResult => {
+  const [error, baseState, base] = parseCall(state);
+  if (error || !base) return [error, baseState, null] as const;
+
+  const [matched, operatorState] = match(baseState, [TokenType.POWER]);
+  if (!matched) return [null, baseState, base] as const;
+
+  const [exponentError, exponentState, exponent] = parseUnary(operatorState);
+  if (exponentError || !exponent)
+    return [exponentError, exponentState, null] as const;
+
+  const powerExpr: BinaryExpressionNode = {
+    type: 'BinaryExpression',
+    operator: '^',
+    left: base,
+    right: exponent,
+    location: base.location,
+  };
+  return [null, exponentState, powerExpr] as const;
 };
 
 const parseCall = (

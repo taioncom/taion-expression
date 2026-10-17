@@ -253,6 +253,12 @@ export type ExpressionOptions = {
   readonly maxLoopIterations?: number;
 
   /**
+   * Maximum length of the expression source in characters (0 disables the check)
+   * Default: 10000
+   */
+  readonly maxExpressionLength?: number;
+
+  /**
    * Allowed property access patterns (regex)
    * If provided, only properties matching these patterns can be accessed
    */

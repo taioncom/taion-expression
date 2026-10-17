@@ -37,9 +37,7 @@ describe('Parser', () => {
     const [nullError, nullAst] = parseExpression('null');
     expect(nullError).toBeNull();
     expect(nullAst?.type).toBe('Literal');
-    expect(
-      (nullAst as any)?.value === null || (nullAst as any)?.value === 'null',
-    ).toBeTruthy();
+    expect((nullAst as any)?.value).toBeNull();
   });
 
   test('parses identifier expressions correctly', () => {

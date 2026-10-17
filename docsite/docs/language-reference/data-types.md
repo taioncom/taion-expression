@@ -21,15 +21,14 @@ Numbers support all arithmetic operations. Division by zero returns `Infinity` o
 
 ## String
 
-Text enclosed in single quotes, double quotes, or backticks.
+Text enclosed in single or double quotes.
 
 ```
 "hello"
 'world'
-`template`
 ```
 
-Backtick strings support interpolation when `enableTemplateStrings` is enabled -- see [Template Strings](../guides/template-strings.md).
+Backtick strings are template literals and require `enableTemplateStrings: true`; without it they fail to compile with `TEMPLATE_STRINGS_DISABLED` -- see [Template Strings](../guides/template-strings.md).
 
 Strings can be concatenated with the `+` operator:
 

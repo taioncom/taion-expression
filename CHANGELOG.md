@@ -1,5 +1,37 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `maxExpressionLength` option (default 10000 characters, `0` disables) -- fails with `MAX_EXPRESSION_LENGTH_EXCEEDED`
+- Deeply nested expressions return a `MAX_NESTING_EXCEEDED` failure instead of throwing a `RangeError`
+- Strings produced by expressions are capped at 1,000,000 characters: `+` fails with `MAX_STRING_LENGTH_EXCEEDED`, `repeat`/`join`/`concat` return `""`, `padLeft`/`padRight` return the input unchanged
+- Regex functions reject patterns with nested quantifiers (e.g. `(a+)+`) or backreferences to guard against ReDoS
+- Test workflow for GitHub Actions
+
+### Changed
+
+- `maxComplexity` limits the number of AST nodes at compile time instead of counting evaluated nodes; repeated arrow function bodies no longer count, runtime work is bounded by `maxLoopIterations` and `timeout`
+- Disabled features (arrays, template strings, arrow functions) and invalid `allowedProperties`/`deniedProperties` patterns fail at compile time with `errorType: "CompilationError"`
+- Property policy: denied patterns also apply to top-level context variables and to bracket access by full path (`user["password"]` matches `user.password`); the allowlist applies to values read out, exempting intermediate path segments and built-in/custom function names; an empty allowlist allows everything
+- Custom functions override built-in functions with the same name, as documented
+- `<`, `<=`, `>`, `>=` compare two strings alphabetically instead of converting them to numbers
+- `^` is right-associative and binds tighter than unary minus, following math convention: `2 ^ 3 ^ 2` is 512 (was 64) and `-2 ^ 2` is -4 (was 4)
+- Long operator chains and long string literals are parsed iteratively
+
+### Fixed
+
+- The `null` literal evaluated to the string `"null"`
+- Token values and error columns included leading whitespace (`Unexpected token ' /'`)
+- `user["secret"]` bypassed path-specific `deniedProperties`, and top-level identifiers ignored the property policy
+- Identifiers and function names resolved through the prototype chain (`constructor`, `__proto__`, `toString`)
+- `groupBy`, `fromEntries`, `pick` and `omit` mishandled keys such as `constructor` and `__proto__`
+
+### Removed
+
+- Unused Babel, `cross-env` and legacy `.eslintrc.json` configuration
+
 ## 1.2.0
 
 ### Added
@@ -15,7 +47,7 @@
 
 ### Added
 
-#### Math Functions (18 new)
+#### Math Functions (19 new)
 
 - `pow(base, exp)`, `sqrt(num)`, `log(num)`, `log10(num)`, `log2(num)` -- exponentiation and logarithms
 - `sign(num)`, `trunc(num)`, `mod(a, b)` -- sign, truncation, remainder
@@ -32,7 +64,7 @@
 - `includes(strOrArray, search)` -- check if string or array contains a value
 - `concat(...values)` -- null-safe string concatenation
 
-#### Array Functions (14 new)
+#### Array Functions (13 new)
 
 - `first(array)`, `last(array)` -- quick element access
 - `unique(array)`, `compact(array)` -- deduplication and null removal

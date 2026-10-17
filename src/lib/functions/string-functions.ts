@@ -1,3 +1,20 @@
+import { MAX_STRING_LENGTH } from '../security.js';
+
+/**
+ * Join strings with a separator, returning an empty string if the result
+ * would exceed the maximum string length
+ */
+export const joinLimited = (
+  parts: readonly string[],
+  separator: string,
+): string => {
+  const total = parts.reduce(
+    (acc, part) => acc + part.length + separator.length,
+    0,
+  );
+  return total > MAX_STRING_LENGTH ? '' : parts.join(separator);
+};
+
 /**
  * String manipulation functions
  */
@@ -106,7 +123,7 @@ export const stringFunctions: Record<
     const s = value === null || value === undefined ? '' : String(value);
     const n = Number(len) || 0;
     const p = typeof pad === 'string' ? pad : ' ';
-    return s.padStart(n, p);
+    return n > MAX_STRING_LENGTH ? s : s.padStart(n, p);
   },
 
   /** Pads a string on the right to reach the specified length */
@@ -114,7 +131,7 @@ export const stringFunctions: Record<
     const s = value === null || value === undefined ? '' : String(value);
     const n = Number(len) || 0;
     const p = typeof pad === 'string' ? pad : ' ';
-    return s.padEnd(n, p);
+    return n > MAX_STRING_LENGTH ? s : s.padEnd(n, p);
   },
 
   /** Repeats a string n times */
@@ -122,6 +139,7 @@ export const stringFunctions: Record<
     if (typeof str !== 'string') return '';
     const n = Number(count);
     if (!Number.isInteger(n) || n < 0 || n > 10000) return '';
+    if (str.length * n > MAX_STRING_LENGTH) return '';
     return str.repeat(n);
   },
 
@@ -146,8 +164,9 @@ export const stringFunctions: Record<
 
   /** Concatenates all arguments into a single string (null-safe) */
   concat: (...args: readonly unknown[]): string => {
-    return args
-      .map((a) => (a === null || a === undefined ? '' : String(a)))
-      .join('');
+    return joinLimited(
+      args.map((a) => (a === null || a === undefined ? '' : String(a))),
+      '',
+    );
   },
 };

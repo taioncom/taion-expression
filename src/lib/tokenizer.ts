@@ -50,12 +50,12 @@ const createTokenizerState = (source: string): TokenizerState => ({
 const addToken = (
   state: TokenizerState,
   type: TokenType,
-  value: string | number | boolean | null = null,
+  value?: string | number | boolean | null,
 ): TokenizerState => {
   const token: Token = {
     type,
     value:
-      value !== null
+      value !== undefined
         ? value
         : state.source.substring(state.start, state.current),
     line: state.line,
@@ -182,10 +182,11 @@ const isAtEnd = (state: TokenizerState): boolean =>
  */
 const number = (state: TokenizerState): TokenizerState => {
   const processDigits = (s: TokenizerState): TokenizerState => {
-    if (!isDigit(peek(s))) {
-      return s;
+    let current = s;
+    while (isDigit(peek(current))) {
+      current = advance(current);
     }
-    return processDigits(advance(s));
+    return current;
   };
 
   const afterInteger = processDigits(state);
@@ -211,15 +212,13 @@ const number = (state: TokenizerState): TokenizerState => {
  */
 const string = (state: TokenizerState, quote: string): TokenizerState => {
   const processStringChars = (s: TokenizerState): TokenizerState => {
-    if (peek(s) === quote || isAtEnd(s)) {
-      return s;
+    let current = s;
+    while (peek(current) !== quote && !isAtEnd(current)) {
+      // Skip the backslash and the next character of an escape sequence
+      current =
+        peek(current) === '\\' ? advance(advance(current)) : advance(current);
     }
-    // Handle escape sequences in strings
-    if (peek(s) === '\\' && !isAtEnd(s)) {
-      // Skip the backslash and the next character
-      return processStringChars(advance(advance(s)));
-    }
-    return processStringChars(advance(s));
+    return current;
   };
 
   const afterString = processStringChars(state);
@@ -279,77 +278,75 @@ const processEscapeSequences = (text: string): string => {
 const processTemplateString = (state: TokenizerState): TokenizerState => {
   // Variable to track the current state as we process the template string
   const processTemplateParts = (
-    current: TokenizerState,
+    initial: TokenizerState,
     textStart: number,
   ): TokenizerState => {
-    // If we've reached the end of the input
-    if (isAtEnd(current)) {
-      // Error: unterminated template string
-      return addErrorToken(
-        current,
-        'Unterminated template string',
-        current.line,
-        current.column,
-      );
+    let current = initial;
+    for (;;) {
+      // If we've reached the end of the input
+      if (isAtEnd(current)) {
+        // Error: unterminated template string
+        return addErrorToken(
+          current,
+          'Unterminated template string',
+          current.line,
+          current.column,
+        );
+      }
+
+      // If we've found the closing backtick
+      if (peek(current) === '`') {
+        // Add the text part before the closing backtick, if any
+        const updatedState =
+          current.current > textStart
+            ? addToken(
+                { ...current, start: textStart },
+                TokenType.STRING,
+                processEscapeSequences(
+                  current.source.substring(textStart, current.current),
+                ),
+              )
+            : current;
+
+        // Consume the closing backtick
+        const afterBacktick = advance(updatedState);
+
+        // Add the BACKTICK token to indicate the end of the template
+        return addToken(afterBacktick, TokenType.BACKTICK);
+      }
+
+      // Check for interpolation start
+      if (peek(current) === '$' && peekNext(current) === '{') {
+        // If there's text before the interpolation, add it as a string token
+        const beforeInterpolation =
+          current.current > textStart
+            ? addToken(
+                { ...current, start: textStart },
+                TokenType.STRING,
+                processEscapeSequences(
+                  current.source.substring(textStart, current.current),
+                ),
+              )
+            : current;
+
+        // Add the DOLLAR_SIGN token
+        const afterDollar = addToken(
+          advance(beforeInterpolation),
+          TokenType.DOLLAR_SIGN,
+        );
+
+        // Add the LEFT_BRACE token
+        const afterBrace = addToken(advance(afterDollar), TokenType.LEFT_BRACE);
+
+        // Return after the opening brace with inTemplate=true to indicate we're inside an interpolation
+        // The parser will handle the expression inside the interpolation
+        return { ...afterBrace, inTemplate: true };
+      }
+
+      // Skip the backslash of an escape sequence and include the next character as-is
+      current =
+        peek(current) === '\\' ? advance(advance(current)) : advance(current);
     }
-
-    // If we've found the closing backtick
-    if (peek(current) === '`') {
-      // Add the text part before the closing backtick, if any
-      const updatedState =
-        current.current > textStart
-          ? addToken(
-              { ...current, start: textStart },
-              TokenType.STRING,
-              processEscapeSequences(
-                current.source.substring(textStart, current.current),
-              ),
-            )
-          : current;
-
-      // Consume the closing backtick
-      const afterBacktick = advance(updatedState);
-
-      // Add the BACKTICK token to indicate the end of the template
-      return addToken(afterBacktick, TokenType.BACKTICK);
-    }
-
-    // Check for interpolation start
-    if (peek(current) === '$' && peekNext(current) === '{') {
-      // If there's text before the interpolation, add it as a string token
-      const beforeInterpolation =
-        current.current > textStart
-          ? addToken(
-              { ...current, start: textStart },
-              TokenType.STRING,
-              processEscapeSequences(
-                current.source.substring(textStart, current.current),
-              ),
-            )
-          : current;
-
-      // Add the DOLLAR_SIGN token
-      const afterDollar = addToken(
-        advance(beforeInterpolation),
-        TokenType.DOLLAR_SIGN,
-      );
-
-      // Add the LEFT_BRACE token
-      const afterBrace = addToken(advance(afterDollar), TokenType.LEFT_BRACE);
-
-      // Return after the opening brace with inTemplate=true to indicate we're inside an interpolation
-      // The parser will handle the expression inside the interpolation
-      return { ...afterBrace, inTemplate: true };
-    }
-
-    // Handle escape sequences
-    if (peek(current) === '\\') {
-      // Skip the backslash and include the next character as-is
-      return processTemplateParts(advance(advance(current)), textStart);
-    }
-
-    // Advance to the next character
-    return processTemplateParts(advance(current), textStart);
   };
 
   // Start after the opening backtick
@@ -361,10 +358,11 @@ const processTemplateString = (state: TokenizerState): TokenizerState => {
  */
 const identifier = (state: TokenizerState): TokenizerState => {
   const processIdChars = (s: TokenizerState): TokenizerState => {
-    if (!isAlphaNumeric(peek(s))) {
-      return s;
+    let current = s;
+    while (isAlphaNumeric(peek(current))) {
+      current = advance(current);
     }
-    return processIdChars(advance(s));
+    return current;
   };
 
   const afterId = processIdChars(state);
@@ -606,14 +604,14 @@ const processTokens = (state: TokenizerState): TokenizerState => {
   let current = state;
 
   while (!isAtEnd(current)) {
-    const updated = { ...current, start: current.current };
-    const afterWhitespace = skipWhitespace(updated);
+    const afterWhitespace = skipWhitespace(current);
 
     if (isAtEnd(afterWhitespace)) {
       return afterWhitespace;
     }
 
-    current = scanToken(afterWhitespace);
+    // Start the token after any whitespace so its value and column exclude it
+    current = scanToken({ ...afterWhitespace, start: afterWhitespace.current });
   }
 
   return current;
