@@ -40,6 +40,10 @@ if ! $DRY_RUN; then
     echo "Error: Not logged in to npm. Run 'npm login' first."
     exit 1
   fi
+  if ! command -v gh &>/dev/null || ! gh auth status &>/dev/null; then
+    echo "Error: GitHub CLI is not installed or not logged in. Run 'brew install gh' and 'gh auth login' first."
+    exit 1
+  fi
 fi
 
 echo "Pre-flight checks passed."
@@ -82,15 +86,26 @@ echo "Version to release: $VERSION"
 # ── Step 2: Changelog ──────────────────────────────────────────────
 
 CHANGELOG_ENTRY=""
+CHANGELOG_CHOICE=""
 
-echo ""
-echo "Would you like to add a changelog entry?"
-echo "  1) Skip (use existing CHANGELOG.md as-is)"
-echo "  2) Add text to CHANGELOG.md"
-echo ""
-read -rp "Choose [1-2]: " CHANGELOG_CHOICE
+if [[ -f CHANGELOG.md ]] && grep -q '^## Unreleased$' CHANGELOG.md; then
+  # Turn the accumulated "## Unreleased" section into this version's section
+  sed -i.bak "s/^## Unreleased\$/## $VERSION/" CHANGELOG.md
+  rm -f CHANGELOG.md.bak
+  CHANGELOG_ENTRY="(renamed Unreleased section)"
+  echo ""
+  echo "Renamed '## Unreleased' to '## $VERSION' in CHANGELOG.md."
+else
+  echo ""
+  echo "Would you like to add a changelog entry?"
+  echo "  1) Skip (use existing CHANGELOG.md as-is)"
+  echo "  2) Add text to CHANGELOG.md"
+  echo ""
+  read -rp "Choose [1-2]: " CHANGELOG_CHOICE
+fi
 
 case "$CHANGELOG_CHOICE" in
+  "") ;;
   1)
     echo "Keeping existing CHANGELOG.md."
     ;;
@@ -141,6 +156,9 @@ if [[ -f CHANGELOG.md ]]; then
   printf -- '---\nsidebar_position: 99\n---\n\n' > docsite/docs/changelog.md
   cat CHANGELOG.md >> docsite/docs/changelog.md
   echo "Synced CHANGELOG.md to docsite."
+  if ! grep -q "^## $VERSION\$" CHANGELOG.md; then
+    echo "Warning: CHANGELOG.md has no '## $VERSION' section; the GitHub release will have generic notes."
+  fi
 fi
 
 # ── Step 3: Confirmation ──────────────────────────────────────────
@@ -178,7 +196,7 @@ if $DRY_RUN; then
 fi
 echo ""
 echo "  Actions:"
-echo "    - Build and run all tests"
+echo "    - Clean build, run all tests and build the docsite"
 if $HAS_CHANGES; then
   echo "    - Commit changes"
 fi
@@ -186,9 +204,8 @@ echo "    - Create git tag v$VERSION"
 if ! $DRY_RUN; then
   echo "    - Publish to npm"
   echo "    - Push to origin (commits + tags)"
-  if command -v gh &>/dev/null; then
-    echo "    - Create GitHub release"
-  fi
+  echo "    - Create GitHub release"
+  echo "    - Wait for the docsite deployment"
 fi
 echo ""
 echo "════════════════════════════════════════════════════════"
@@ -208,11 +225,18 @@ fi
 
 echo ""
 echo "Building and running tests..."
+# Remove old output so files of deleted sources are not published
+rm -rf build
 npm run build
 npm run test:lint
 npm run test:prettier
 npm run test:unit
 npm run test:smoke
+(
+  cd docsite
+  [[ -d node_modules ]] || npm ci
+  npm run build
+)
 echo "Build and tests passed."
 
 # ── Commit, tag, publish ────────────────────────────────────────────
@@ -239,25 +263,47 @@ if $DRY_RUN; then
   exit 0
 fi
 
-npm publish --access public
+if ! npm publish --access public; then
+  echo ""
+  echo "Error: npm publish failed. The release commit and tag v$VERSION exist only locally."
+  echo "Publish manually with 'npm publish --access public', then run:"
+  echo "  git push && git push origin v$VERSION"
+  echo "  gh release create v$VERSION --title v$VERSION --notes-file <notes>"
+  exit 1
+fi
 git push
-git push --tags
+git push origin "v$VERSION"
 
-# ── GitHub release (optional) ──────────────────────────────────────
+# ── GitHub release ─────────────────────────────────────────────────
 
-if command -v gh &>/dev/null; then
-  echo "Creating GitHub release..."
-  NOTES="Release v$VERSION"
-  if [[ -f CHANGELOG.md ]]; then
-    SECTION="$(awk "/^## .*$VERSION/{found=1; next} /^## /{found=0} found" CHANGELOG.md)"
-    if [[ -n "$SECTION" ]]; then
-      NOTES="$SECTION"
-    fi
+echo "Creating GitHub release..."
+NOTES="Release v$VERSION"
+if [[ -f CHANGELOG.md ]]; then
+  SECTION="$(awk -v heading="## $VERSION" '$0 == heading {found=1; next} /^## /{found=0} found' CHANGELOG.md)"
+  if [[ -n "$SECTION" ]]; then
+    NOTES="$SECTION"
   fi
-  gh release create "v$VERSION" --title "v$VERSION" --notes "$NOTES"
-  echo "GitHub release created."
+fi
+gh release create "v$VERSION" --title "v$VERSION" --notes "$NOTES"
+echo "GitHub release created."
+
+# ── Docsite deployment ─────────────────────────────────────────────
+
+# The Deploy Docsite workflow runs on pushes to main that touch package.json, src or docsite
+echo "Waiting for the docsite deployment..."
+HEAD_SHA="$(git rev-parse HEAD)"
+RUN_ID=""
+for _ in 1 2 3 4 5 6; do
+  RUN_ID="$(gh run list --workflow deploy-docs.yml --commit "$HEAD_SHA" --json databaseId --jq '.[0].databaseId // empty')"
+  [[ -n "$RUN_ID" ]] && break
+  sleep 5
+done
+if [[ -z "$RUN_ID" ]]; then
+  echo "No docsite deployment was triggered for this commit."
+elif gh run watch "$RUN_ID" --exit-status >/dev/null; then
+  echo "Docsite deployed: https://taioncom.github.io/taion-expression/"
 else
-  echo "Skipping GitHub release (gh CLI not installed)."
+  echo "Warning: docsite deployment failed. See 'gh run view $RUN_ID --log-failed'."
 fi
 
 echo ""
