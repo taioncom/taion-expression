@@ -126,7 +126,7 @@ Unresolved identifiers return `null` (never throws).
 
 **Array**: `sum(arr)`, `avg(arr)`, `count(arr)`, `arrayContains(arr,val)`, `first(arr)`, `last(arr)`, `join(arr,sep)`, `sort(arr)`, `reverse(arr)`, `length(arr)`, `slice(arr,start,end?)`, `unique(arr)`, `compact(arr)`, `flat(arr,depth?)`, `range(start,end,step?)`, `chunk(arr,size)`, `zip(arr1,arr2)`
 
-Limits: `repeat` n <= 10000, `split` keeps <= 10000 pieces, `range` yields <= 10000 elements; strings are capped at 1,000,000 chars (`repeat`/`join`/`concat` return `""`, `padLeft`/`padRight` return input, `+` fails with `MAX_STRING_LENGTH_EXCEEDED`). `count(x)` counts arrays only (`count("abc")` = 0). `isNumber(NaN)` is false.
+Limits: `repeat` n `<= 10000`, `split` keeps `<= 10000` pieces, `range` yields `<= 10000` elements; strings are capped at 1,000,000 chars (`repeat`/`join`/`concat` return `""`, `padLeft`/`padRight` return input, `+` fails with `MAX_STRING_LENGTH_EXCEEDED`). `count(x)` counts arrays only (`count("abc")` = 0). `isNumber(NaN)` is false.
 
 **Statistics**: `median(arr)`, `stddev(arr)`, `variance(arr)`, `percentile(arr,p)`
 
