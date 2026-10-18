@@ -130,7 +130,7 @@ $CHANGELOG_ENTRY"
   *)
     echo "Aborted."
     if [[ -n "$BUMP_TYPE" ]]; then
-      git checkout -- package.json
+      git checkout -- package.json package-lock.json
     fi
     exit 1
     ;;
@@ -218,7 +218,7 @@ echo "Build and tests passed."
 # ── Commit, tag, publish ────────────────────────────────────────────
 
 if $HAS_CHANGES; then
-  git add package.json CHANGELOG.md docsite/docs/changelog.md
+  git add package.json package-lock.json CHANGELOG.md docsite/docs/changelog.md
   git commit -m "release: v$VERSION"
 fi
 
