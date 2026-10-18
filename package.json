@@ -30,7 +30,10 @@
     }
   },
   "homepage": "https://taioncom.github.io/taion-expression/",
-  "repository": "https://github.com/taioncom/taion-expression",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taioncom/taion-expression.git"
+  },
   "scripts": {
     "build": "run-p build:*",
     "build:main": "tsc -p tsconfig.json",
