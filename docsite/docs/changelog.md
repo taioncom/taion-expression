@@ -4,7 +4,7 @@ sidebar_position: 99
 
 # Changelog
 
-## Unreleased
+## 2.0.0
 
 ### Added
 
