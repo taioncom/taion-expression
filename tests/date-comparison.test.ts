@@ -1,6 +1,10 @@
 import { describe, expect, test } from '@jest/globals';
 import { evaluateExpression } from '../src/lib/taion-expression.js';
-import { dateOperands, toDateTime } from '../src/lib/date-coercion.js';
+import {
+  createDayFormat,
+  dateOperands,
+  toDateTime,
+} from '../src/lib/date-coercion.js';
 import { ExpressionOptions } from '../src/lib/types.js';
 
 const d = new Date('2026-10-15T12:00:00Z');
@@ -94,12 +98,30 @@ describe('toDateTime / dateOperands', () => {
     expect(toDateTime(text)).toBe(time);
   });
 
-  test.each(['banana', '2026', '15.10.2026', '2026-10-15x', '', 42, null])(
-    '%p is not a date',
-    (input) => {
-      expect(toDateTime(input)).toBeNull();
-    },
-  );
+  test.each([
+    'banana',
+    '2026',
+    '15.10.2026',
+    '2026-10-15x',
+    '',
+    42,
+    null,
+    '2026-02-30',
+    '2026-02-29',
+    '2026-04-31',
+    '2026-00-10',
+    '2026-10-00',
+    '2026-02-30T12:00:00Z',
+  ])('%p is not a date', (input) => {
+    expect(toDateTime(input)).toBeNull();
+  });
+
+  test('leap days and years 0-99 parse', () => {
+    expect(toDateTime('2028-02-29')).toBe(Date.UTC(2028, 1, 29));
+    expect(toDateTime('0050-12-31')).toBe(
+      new Date(0).setUTCFullYear(50, 11, 31),
+    );
+  });
 
   test('needs a Date on at least one side', () => {
     expect(dateOperands('2026-10-15', '2026-10-16')).toBeNull();
@@ -193,13 +215,38 @@ describe.each(modes)(
 describe('dateOperands with timeZone', () => {
   test('only a date alone becomes a day', () => {
     const t = new Date('2026-09-30T22:00:00Z');
-    expect(dateOperands(t, '2026-10-01', 'Europe/Helsinki')).toEqual([
+    const helsinki = createDayFormat('Europe/Helsinki');
+    expect(dateOperands(t, '2026-10-01', helsinki)).toEqual([
       Date.UTC(2026, 9, 1),
       Date.UTC(2026, 9, 1),
     ]);
-    expect(dateOperands(t, t, 'Europe/Helsinki')).toEqual([
-      t.getTime(),
-      t.getTime(),
-    ]);
+    expect(dateOperands(t, t, helsinki)).toEqual([t.getTime(), t.getTime()]);
+  });
+});
+
+describe('calendar edge cases', () => {
+  test.each([
+    ['javascript', {}],
+    ['spreadsheet', { semantics: 'spreadsheet' }],
+  ] as const)('an impossible day is not a date (%s)', (_name, options) => {
+    const march2 = { d: new Date('2026-03-02T00:00:00Z') };
+    const run = (expr: string, extra: ExpressionOptions = {}) => {
+      const result = evaluateExpression(expr, march2, { ...options, ...extra });
+      return result.success ? result.result : undefined;
+    };
+    expect(run("d == '2026-02-30'")).toBe(false);
+    expect(run("d == '2026-02-30'", { timeZone: 'UTC' })).toBe(false);
+    expect(run("d > '2026-02-30'", { timeZone: 'UTC' })).toBe(false);
+  });
+
+  test('years 0-99 with timeZone', () => {
+    const ctx = { d: new Date(new Date(0).setUTCFullYear(50, 5, 1)) };
+    const run = (expr: string) => {
+      const result = evaluateExpression(expr, ctx, { timeZone: 'UTC' });
+      return result.success ? result.result : undefined;
+    };
+    expect(run("d <= '0050-12-31'")).toBe(true);
+    expect(run("d >= '0050-01-01'")).toBe(true);
+    expect(run("d == '0050-06-01'")).toBe(true);
   });
 });

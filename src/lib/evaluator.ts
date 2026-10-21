@@ -2,7 +2,7 @@ import {
   builtInFunctions,
   contextPassingFunctions,
 } from './functions/index.js';
-import { dateOperands } from './date-coercion.js';
+import { createDayFormat, dateOperands } from './date-coercion.js';
 import { resolveLibraryFunction } from './function-resolver.js';
 import {
   checkSecurityLimits,
@@ -119,9 +119,9 @@ const compareValues = (
   operator: string,
   left: unknown,
   right: unknown,
-  timeZone?: string,
+  dayFormat?: Intl.DateTimeFormat,
 ): boolean => {
-  const dates = dateOperands(left, right, timeZone);
+  const dates = dateOperands(left, right, dayFormat);
   const bothStrings =
     !dates && typeof left === 'string' && typeof right === 'string';
   const [a, b] = dates ?? [
@@ -156,7 +156,7 @@ const evaluateBinaryExpression = (
   }
 
   const right = evaluateNode(node.right, context);
-  const timeZone = context.options.timeZone;
+  const dayFormat = context.dayFormat;
 
   if (context.options.semantics === 'spreadsheet') {
     return spreadsheetBinary(
@@ -164,7 +164,7 @@ const evaluateBinaryExpression = (
       left,
       right,
       MAX_STRING_LENGTH,
-      timeZone,
+      dayFormat,
     );
   }
 
@@ -187,13 +187,13 @@ const evaluateBinaryExpression = (
     case '<':
     case '>=':
     case '<=':
-      return compareValues(node.operator, left, right, timeZone);
+      return compareValues(node.operator, left, right, dayFormat);
     case '==': {
-      const dates = dateOperands(left, right, timeZone);
+      const dates = dateOperands(left, right, dayFormat);
       return dates ? dates[0] === dates[1] : left === right;
     }
     case '!=': {
-      const dates = dateOperands(left, right, timeZone);
+      const dates = dateOperands(left, right, dayFormat);
       return dates ? dates[0] !== dates[1] : left !== right;
     }
     default:
@@ -519,6 +519,9 @@ export const evaluateAST = (
   // Compile property patterns once; throws INVALID_REGEX_PATTERN on bad input
   const compiledAllowedProperties = compilePatterns(options.allowedProperties);
   const compiledDeniedProperties = compilePatterns(options.deniedProperties);
+  const dayFormat = options.timeZone
+    ? createDayFormat(options.timeZone)
+    : undefined;
 
   const evaluate = (context: Record<string, unknown> = {}): unknown => {
     const evaluatorContext: EvaluatorContext = {
@@ -528,6 +531,7 @@ export const evaluateAST = (
       localVariables: {},
       compiledAllowedProperties,
       compiledDeniedProperties,
+      dayFormat,
     };
 
     try {

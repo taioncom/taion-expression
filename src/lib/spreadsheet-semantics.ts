@@ -85,11 +85,15 @@ const arithmetic = (
 /**
  * Whether two values are equal with spreadsheet semantics
  */
-const equals = (left: unknown, right: unknown, timeZone?: string): boolean => {
+const equals = (
+  left: unknown,
+  right: unknown,
+  dayFormat?: Intl.DateTimeFormat,
+): boolean => {
   if (isNullish(left) || isNullish(right)) {
     return isNullish(left) && isNullish(right);
   }
-  const dates = dateOperands(left, right, timeZone);
+  const dates = dateOperands(left, right, dayFormat);
   if (dates) return dates[0] === dates[1];
   const a = toSpreadsheetNumber(left);
   const b = toSpreadsheetNumber(right);
@@ -103,10 +107,10 @@ const compare = (
   operator: string,
   left: unknown,
   right: unknown,
-  timeZone?: string,
+  dayFormat?: Intl.DateTimeFormat,
 ): boolean => {
   if (isNullish(left) || isNullish(right)) return false;
-  const dates = dateOperands(left, right, timeZone);
+  const dates = dateOperands(left, right, dayFormat);
   const a = toSpreadsheetNumber(left);
   const b = toSpreadsheetNumber(right);
   const numeric = a !== null && b !== null;
@@ -136,18 +140,18 @@ export const spreadsheetBinary = (
   left: unknown,
   right: unknown,
   maxStringLength: number,
-  timeZone?: string,
+  dayFormat?: Intl.DateTimeFormat,
 ): unknown => {
   switch (operator) {
     case '==':
-      return equals(left, right, timeZone);
+      return equals(left, right, dayFormat);
     case '!=':
-      return !equals(left, right, timeZone);
+      return !equals(left, right, dayFormat);
     case '>':
     case '<':
     case '>=':
     case '<=':
-      return compare(operator, left, right, timeZone);
+      return compare(operator, left, right, dayFormat);
     case '+':
     case '-':
     case '*':

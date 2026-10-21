@@ -37,33 +37,53 @@ const isInstant = (value: unknown): boolean =>
     ISO_DATE.test(value) &&
     INSTANT.test(value));
 
-const dayFormats = new Map<string, Intl.DateTimeFormat>();
-
 /** Whether `timeZone` is an IANA time zone name the runtime knows */
 export const isValidTimeZone = (timeZone: string): boolean => {
   try {
-    new Intl.DateTimeFormat('en-US', { timeZone });
+    createDayFormat(timeZone);
     return true;
   } catch {
     return false;
   }
 };
 
-/** The calendar day of `time` in `timeZone`, as UTC midnight of that day */
-const dayInZone = (time: number, timeZone: string): number => {
-  let format = dayFormats.get(timeZone);
-  if (!format) {
-    format = new Intl.DateTimeFormat('en-US', {
-      timeZone,
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-    });
-    dayFormats.set(timeZone, format);
-  }
+/**
+ * A formatter giving the calendar day in `timeZone`. Created once per
+ * compiled expression; throws a RangeError for an unknown zone.
+ */
+export const createDayFormat = (timeZone: string): Intl.DateTimeFormat =>
+  new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  });
+
+/** UTC midnight of a calendar day; years 0-99 are taken literally */
+const utcDay = (year: number, month: number, day: number): number =>
+  new Date(0).setUTCFullYear(year, month - 1, day);
+
+/** Whether the date part of an ISO string is a real calendar day */
+const isCalendarDate = (text: string): boolean => {
+  const [year, month, day] = text.slice(0, 10).split('-').map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  return (
+    month >= 1 &&
+    month <= 12 &&
+    day >= 1 &&
+    new Date(utcDay(year, month, day)).getUTCDate() === day
+  );
+};
+
+/** The calendar day of `time` in the formatter's zone, as UTC midnight */
+const dayInZone = (time: number, dayFormat: Intl.DateTimeFormat): number => {
+  const parts = dayFormat.formatToParts(time);
   const part = (type: string): number =>
-    Number(format.formatToParts(time).find((p) => p.type === type)?.value);
-  return Date.UTC(part('year'), part('month') - 1, part('day'));
+    Number(parts.find((p) => p.type === type)?.value);
+  return utcDay(part('year'), part('month'), part('day'));
 };
 
 /**
@@ -76,7 +96,11 @@ export const toDateTime = (value: unknown): number | null => {
     const time = value.getTime();
     return Number.isNaN(time) ? null : time;
   }
-  if (typeof value === 'string' && ISO_DATE.test(value)) {
+  if (
+    typeof value === 'string' &&
+    ISO_DATE.test(value) &&
+    isCalendarDate(value)
+  ) {
     const time = Date.parse(value.replace(' ', 'T'));
     return Number.isNaN(time) ? null : time;
   }
@@ -86,16 +110,16 @@ export const toDateTime = (value: unknown): number | null => {
 /**
  * Both operands as times when at least one is a `Date` and the other is a
  * `Date` or an ISO 8601 date string; null otherwise (the caller compares as
- * before). With `timeZone`, an exact time against a date alone gives both as
- * days in that zone.
+ * before). With a day formatter (the `timeZone` option), an exact time
+ * against a date alone gives both as days in that zone.
  */
 export const dateOperands = (
   left: unknown,
   right: unknown,
-  timeZone?: string,
+  dayFormat?: Intl.DateTimeFormat,
 ): readonly [number, number] | null => {
-  if (timeZone) {
-    const days = zonedDays(left, right, timeZone);
+  if (dayFormat) {
+    const days = zonedDays(left, right, dayFormat);
     if (days) return days;
   }
   if (!(left instanceof Date) && !(right instanceof Date)) return null;
@@ -104,11 +128,11 @@ export const dateOperands = (
   return a !== null && b !== null ? [a, b] : null;
 };
 
-/** An exact time and a date alone as days in `timeZone`, else null */
+/** An exact time and a date alone as days in the formatter's zone, else null */
 const zonedDays = (
   left: unknown,
   right: unknown,
-  timeZone: string,
+  dayFormat: Intl.DateTimeFormat,
 ): readonly [number, number] | null => {
   const [instant, date, flipped] =
     isInstant(left) && isDateOnly(right)
@@ -120,6 +144,6 @@ const zonedDays = (
   const time = toDateTime(instant);
   const day = toDateTime(date);
   if (time === null || day === null) return null;
-  const zoned = dayInZone(time, timeZone);
+  const zoned = dayInZone(time, dayFormat);
   return flipped ? [day, zoned] : [zoned, day];
 };

@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.1.1
+## 2.2.0
 
 ### Added
 
@@ -8,7 +8,7 @@
 
 ### Fixed
 
-- A `Date` compared with an ISO 8601 date string compares by time, in both semantics and also with `==` / `!=`. Before, `<`/`<=`/`>`/`>=` were always false in the default semantics and compared the date's long text form (`"Thu Oct 15 2026 ..."`) in the spreadsheet semantics, so `createdAt > '2026-10-20'` could be true for October 15; `==` was always false
+- A `Date` compared with an ISO 8601 date string compares by time, in both semantics and also with `==` / `!=`. Before, `<`/`<=`/`>`/`>=` were always false in the default semantics and compared the date's long text form (`"Thu Oct 15 2026 ..."`) in the spreadsheet semantics, so `createdAt > '2026-10-20'` could be true for October 15; `==` was always false. A string naming a day that does not exist (`'2026-02-30'`) is not a date
 - Spreadsheet semantics: a `Date` against text that is neither a date nor a number is unordered (comparisons are false) instead of comparing the date's long text form
 
 ## 2.1.0
