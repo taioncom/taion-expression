@@ -293,6 +293,32 @@ export type ExpressionOptions = {
    * Default: false
    */
   readonly enableArrowFunctions?: boolean;
+
+  /**
+   * If true, keywords (true, false, null, if, then, else, and, or, not) match
+   * in any letter case, and a called name with no exact custom or built-in
+   * match calls the function whose name differs only in case (CONCAT calls
+   * concat). Context identifiers stay case-sensitive.
+   * Default: false
+   */
+  readonly caseInsensitiveNames?: boolean;
+
+  /**
+   * Operator semantics. 'javascript' (the default) follows JavaScript
+   * coercion; 'spreadsheet' propagates null through arithmetic, gives null
+   * for division by zero, treats numeric strings as numbers and compares with
+   * null in a null-aware way.
+   * Default: 'javascript'
+   */
+  readonly semantics?: 'javascript' | 'spreadsheet';
+
+  /**
+   * If true, compilation fails with UNKNOWN_FUNCTION for a call to a name that
+   * is not a custom or built-in function (or a parameter of an enclosing arrow
+   * function), even in a branch that would never be evaluated.
+   * Default: false
+   */
+  readonly strictFunctions?: boolean;
 };
 
 // Extend Error type to include our custom properties

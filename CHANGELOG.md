@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.0
+
+### Added
+
+- `caseInsensitiveNames` option: keywords (`AND`, `NULL`, `IF ... THEN ... ELSE`) match in any letter case, and a called name with no exact match calls the custom or built-in function differing only in case (`CONCAT` calls `concat`). A non-lowercase `IF`/`AND`/`OR` in operand position directly before `(` is a function call. Identifiers stay case-sensitive
+- `semantics: 'spreadsheet'` option: null propagates through arithmetic, division and modulo by zero give null, numeric strings act as numbers in arithmetic, comparison and equality, `+` concatenates only with a non-numeric operand, comparisons with null are false and `==`/`!=` are null-aware
+- `strictFunctions` option: a call to an unknown function name fails at compile time with `UNKNOWN_FUNCTION`, also in branches that are never evaluated
+- `analyzeExpression()`: parse and validate without evaluating; returns the AST, the context paths read and the functions called
+- Documented and tested identifiers starting with `$` (`$CURRENT_USER`, `$record.status`)
+
+All new behaviour is opt-in; without the new options expressions evaluate exactly as in 2.0.0.
+
 ## 2.0.0
 
 ### Added

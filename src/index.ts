@@ -1,5 +1,6 @@
 // Export main functions
 export {
+  analyzeExpression,
   compileExpression,
   safeCompileExpression,
   evaluateExpression,
@@ -11,6 +12,8 @@ export {
   EvaluateSuccess,
   EvaluateFailure,
   EvaluateResult,
+  AnalyzeSuccess,
+  AnalyzeResult,
 } from './lib/taion-expression.js';
 
 // Export types

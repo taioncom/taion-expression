@@ -1,3 +1,4 @@
+import { KeywordOptions, keywordType } from './keywords.js';
 import { createTokenizationError, Token, TokenType } from './types.js';
 
 /**
@@ -30,18 +31,23 @@ type TokenizerState = {
   readonly line: number;
   readonly column: number;
   readonly inTemplate?: boolean; // Track if we're in a template string
+  readonly keywordOptions: KeywordOptions;
 };
 
 /**
  * Create a new tokenizer state
  */
-const createTokenizerState = (source: string): TokenizerState => ({
+const createTokenizerState = (
+  source: string,
+  keywordOptions: KeywordOptions,
+): TokenizerState => ({
   source,
   tokens: [],
   start: 0,
   current: 0,
   line: 1,
   column: 1,
+  keywordOptions,
 });
 
 /**
@@ -369,27 +375,25 @@ const identifier = (state: TokenizerState): TokenizerState => {
   const text = afterId.source.substring(state.start, afterId.current);
 
   // Check for keywords
-  switch (text) {
-    case 'true':
-      return addToken(afterId, TokenType.BOOLEAN, true);
-    case 'false':
-      return addToken(afterId, TokenType.BOOLEAN, false);
-    case 'null':
-      return addToken(afterId, TokenType.NULL, null);
-    case 'if':
-      return addToken(afterId, TokenType.IF);
-    case 'then':
-      return addToken(afterId, TokenType.THEN);
-    case 'else':
-      return addToken(afterId, TokenType.ELSE);
-    case 'and':
-      return addToken(afterId, TokenType.AND);
-    case 'or':
-      return addToken(afterId, TokenType.OR);
-    case 'not':
-      return addToken(afterId, TokenType.NOT);
-    default:
+  const nextChar = afterId.source
+    .substring(afterId.current)
+    .replace(/^[ \t\r\n]+/, '')
+    .charAt(0);
+  const type = keywordType(
+    text,
+    afterId.tokens[afterId.tokens.length - 1],
+    nextChar,
+    afterId.keywordOptions,
+  );
+  switch (type) {
+    case TokenType.BOOLEAN:
+      return addToken(afterId, type, text.toLowerCase() === 'true');
+    case TokenType.NULL:
+      return addToken(afterId, type, null);
+    case null:
       return addToken(afterId, TokenType.IDENTIFIER);
+    default:
+      return addToken(afterId, type);
   }
 };
 
@@ -620,9 +624,12 @@ const processTokens = (state: TokenizerState): TokenizerState => {
 /**
  * Tokenize a source string into tokens
  */
-export const tokenize = (source: string): readonly Token[] => {
+export const tokenize = (
+  source: string,
+  keywordOptions: KeywordOptions = {},
+): readonly Token[] => {
   // Normal tokenization flow
-  const initialState = createTokenizerState(source);
+  const initialState = createTokenizerState(source, keywordOptions);
   const finalState = processTokens(initialState);
 
   // Add EOF token if not already added (could be added by error handling)

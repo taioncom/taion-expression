@@ -2,6 +2,7 @@ import {
   builtInFunctions,
   contextPassingFunctions,
 } from './functions/index.js';
+import { resolveLibraryFunction } from './function-resolver.js';
 import {
   checkSecurityLimits,
   compilePatterns,
@@ -11,6 +12,10 @@ import {
   isPropertyAccessAllowed,
   MAX_STRING_LENGTH,
 } from './security.js';
+import {
+  spreadsheetBinary,
+  spreadsheetUnary,
+} from './spreadsheet-semantics.js';
 import {
   ArrayIndexNode,
   ArrayLiteralNode,
@@ -146,6 +151,10 @@ const evaluateBinaryExpression = (
 
   const right = evaluateNode(node.right, context);
 
+  if (context.options.semantics === 'spreadsheet') {
+    return spreadsheetBinary(node.operator, left, right, MAX_STRING_LENGTH);
+  }
+
   switch (node.operator) {
     case '+':
       return typeof left === 'string' || typeof right === 'string'
@@ -187,6 +196,9 @@ const evaluateUnaryExpression = (
   context: EvaluatorContext,
 ): unknown => {
   const argument = evaluateNode(node.argument, context);
+  if (context.options.semantics === 'spreadsheet') {
+    return spreadsheetUnary(node.operator, argument);
+  }
   switch (node.operator) {
     case '+':
       return Number(argument);
@@ -226,12 +238,21 @@ const evaluateCallExpression = (
   if (node.callee.type === 'Identifier') {
     const funcName = node.callee.name;
     const customFunctions = context.options.customFunctions ?? {};
+    // Exact names first; a name differing only in case (caseInsensitiveNames)
+    // never shadows an expression-local or context function
+    const resolved =
+      resolveLibraryFunction(funcName, {
+        ...context.options,
+        caseInsensitiveNames: false,
+      }) ??
+      (hasOwn(context.localVariables, funcName) ||
+      hasOwn(context.rootContext, funcName)
+        ? null
+        : resolveLibraryFunction(funcName, context.options));
     // Custom and built-in function names are exempt from the allowlist,
     // context functions are not
-    const isLibraryFunction =
-      hasOwn(customFunctions, funcName) || hasOwn(builtInFunctions, funcName);
     if (
-      !isPropertyAccessAllowed(funcName, funcName, context, isLibraryFunction)
+      !isPropertyAccessAllowed(funcName, funcName, context, resolved !== null)
     ) {
       throw createCompilationError(
         `Function '${funcName}' is not allowed by security policy`,
@@ -240,11 +261,13 @@ const evaluateCallExpression = (
     }
 
     // Custom functions take precedence over built-ins with the same name
-    if (hasOwn(customFunctions, funcName)) {
-      func = customFunctions[funcName];
-    } else if (hasOwn(builtInFunctions, funcName)) {
-      const builtin = builtInFunctions[funcName];
-      func = contextPassingFunctions.includes(funcName)
+    if (resolved?.source === 'custom') {
+      func = customFunctions[resolved.name];
+    } else if (resolved?.source === 'builtin') {
+      const builtin = builtInFunctions[resolved.name] as (
+        ...args: readonly unknown[]
+      ) => unknown;
+      func = contextPassingFunctions.includes(resolved.name)
         ? (...funcArgs: unknown[]) => builtin(updatedContext, ...funcArgs)
         : builtin;
     } else if (hasOwn(context.localVariables, funcName)) {

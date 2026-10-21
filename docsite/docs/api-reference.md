@@ -84,6 +84,21 @@ function getCompiledCode(
 
 ---
 
+### analyzeExpression
+
+Parses and validates an expression exactly as `compileExpression` does, without evaluating it, and lists what it references.
+
+```typescript
+function analyzeExpression(
+  expressionString: string,
+  options?: ExpressionOptions
+): AnalyzeResult;
+```
+
+**Returns:** `AnalyzeResult` -- either `{ success: true, ast, identifiers, functions }` or the same failure object as `compileExpression`. See [Spreadsheet-style Expressions](./guides/spreadsheet-style.md#analyzeexpression).
+
+---
+
 ## Types
 
 ### ExpressionOptions
@@ -102,7 +117,25 @@ type ExpressionOptions = {
   enableArrays?: boolean;              // default: true
   enableTemplateStrings?: boolean;     // default: false
   enableArrowFunctions?: boolean;      // default: false
+  caseInsensitiveNames?: boolean;      // default: false
+  semantics?: 'javascript' | 'spreadsheet'; // default: 'javascript'
+  strictFunctions?: boolean;           // default: false
 };
+```
+
+`caseInsensitiveNames`, `semantics` and `strictFunctions` are described in [Spreadsheet-style Expressions](./guides/spreadsheet-style.md).
+
+### AnalyzeResult
+
+```typescript
+type AnalyzeResult =
+  | {
+      success: true;
+      ast: ExpressionNode;
+      identifiers: readonly string[]; // context paths, deduplicated, in source order
+      functions: readonly string[];   // called names as written, deduplicated
+    }
+  | CompileFailure;
 ```
 
 ### CompiledExpression

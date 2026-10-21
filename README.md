@@ -343,6 +343,23 @@ const options = { enableArrays: true };
 const options = { enableArrowFunctions: true };
 ```
 
+### Spreadsheet-style Expressions
+
+Opt-in options for expressions written by business users (see the [Spreadsheet-style Expressions guide](https://taioncom.github.io/taion-expression/docs/guides/spreadsheet-style)):
+
+```javascript
+const options = {
+  // Keywords and function names in any case: AND, NULL, CONCAT(...)
+  caseInsensitiveNames: true,
+  // null propagates, x / 0 is null, numeric strings act as numbers
+  semantics: 'spreadsheet',
+  // Unknown function names fail at compile time (UNKNOWN_FUNCTION)
+  strictFunctions: true,
+};
+```
+
+`analyzeExpression(expression, options)` validates an expression without evaluating it and returns its AST, the context paths it reads (`identifiers`) and the functions it calls (`functions`). Identifiers may start with `$` (`$CURRENT_USER`).
+
 ## Usage
 
 ### Basic Example

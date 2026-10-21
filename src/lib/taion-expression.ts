@@ -1,3 +1,8 @@
+import {
+  checkStrictFunctions,
+  collectReferences,
+  ExpressionReferences,
+} from './analyzer.js';
 import { evaluateAST } from './evaluator.js';
 import { parse } from './parser.js';
 import { tokenize } from './tokenizer.js';
@@ -5,6 +10,7 @@ import {
   CompiledExpression,
   createCompilationError,
   createEvaluationError,
+  ExpressionNode,
   ExpressionOptions,
   ExtendedError,
   Token,
@@ -59,6 +65,32 @@ export type EvaluateFailure = {
 export type EvaluateResult = EvaluateSuccess | EvaluateFailure;
 
 /**
+ * Type representing a successful analysis: the parsed AST and what it references
+ */
+export type AnalyzeSuccess = {
+  readonly success: true;
+  readonly ast: ExpressionNode;
+  /** Context paths read, deduplicated, excluding arrow parameters and function names */
+  readonly identifiers: readonly string[];
+  /** Called function names as written, deduplicated */
+  readonly functions: readonly string[];
+};
+
+/**
+ * Analyze result type - either success or the same failure as compilation
+ */
+export type AnalyzeResult = AnalyzeSuccess | CompileFailure;
+
+/**
+ * A parsed and validated expression, ready to be interpreted
+ */
+type Validated = {
+  readonly success: true;
+  readonly ast: ExpressionNode;
+  readonly references: ExpressionReferences;
+};
+
+/**
  * Normalize options by providing defaults
  */
 const normalizeOptions = (
@@ -99,6 +131,11 @@ const normalizeOptions = (
     options.enableArrowFunctions !== undefined
       ? options.enableArrowFunctions
       : false,
+
+  // Opt-in language variants
+  caseInsensitiveNames: options.caseInsensitiveNames === true,
+  semantics: options.semantics ?? 'javascript',
+  strictFunctions: options.strictFunctions === true,
 });
 
 /**
@@ -140,9 +177,58 @@ export const compileExpression = (
   expressionString: string,
   options: ExpressionOptions = {},
 ): CompileResult => {
-  // Normalize options
   const normalizedOptions = normalizeOptions(options);
+  const validated = validateExpressionSource(
+    expressionString,
+    normalizedOptions,
+  );
+  if (!validated.success) return validated;
 
+  // Set up the AST interpreter
+  try {
+    const compiled = evaluateAST(
+      validated.ast,
+      expressionString,
+      normalizedOptions,
+    );
+    return { success: true, result: compiled };
+  } catch (e) {
+    return compilationFailure(e as ExtendedError);
+  }
+};
+
+/**
+ * Analyze an expression without evaluating it: parse and validate it exactly
+ * as compilation does (so limits, feature flags and strictFunctions apply)
+ * and list the context paths it reads and the functions it calls.
+ * @param expressionString The expression to analyze
+ * @param options Configuration options for the evaluator
+ * @returns The AST and its references, or the compilation failure
+ */
+export const analyzeExpression = (
+  expressionString: string,
+  options: ExpressionOptions = {},
+): AnalyzeResult => {
+  const validated = validateExpressionSource(
+    expressionString,
+    normalizeOptions(options),
+  );
+  if (!validated.success) return validated;
+  return {
+    success: true,
+    ast: validated.ast,
+    identifiers: validated.references.identifiers,
+    functions: validated.references.functions,
+  };
+};
+
+/**
+ * Check the length limit, then tokenize, parse and validate an expression
+ */
+const validateExpressionSource = (
+  expressionString: string,
+  normalizedOptions: ExpressionOptions,
+): Validated | CompileFailure => {
   const maxLength = normalizedOptions.maxExpressionLength ?? 0;
   if (maxLength > 0 && expressionString.length > maxLength) {
     return {
@@ -176,14 +262,16 @@ export const compileExpression = (
 };
 
 /**
- * Tokenize, parse and set up evaluation for an expression with normalized options
+ * Tokenize, parse and validate an expression with normalized options
  */
 const compileTokens = (
   expressionString: string,
   normalizedOptions: ExpressionOptions,
-): CompileResult => {
+): Validated | CompileFailure => {
   // Step 1: Tokenize the expression
-  const tokens = tokenize(expressionString);
+  const tokens = tokenize(expressionString, {
+    caseInsensitiveNames: normalizedOptions.caseInsensitiveNames,
+  });
 
   // Check for tokenization errors
   const tokenizationError = findTokenizationError(tokens);
@@ -216,13 +304,14 @@ const compileTokens = (
     return compilationFailure(validationError);
   }
 
-  // Step 4: Set up AST interpreter
-  try {
-    const compiled = evaluateAST(ast, expressionString, normalizedOptions);
-    return { success: true, result: compiled };
-  } catch (e) {
-    return compilationFailure(e as ExtendedError);
+  // Step 4: Collect references and check called names (strictFunctions)
+  const references = collectReferences(ast, normalizedOptions);
+  const functionError = checkStrictFunctions(references, normalizedOptions);
+  if (functionError) {
+    return compilationFailure(functionError);
   }
+
+  return { success: true, ast, references };
 };
 
 /**

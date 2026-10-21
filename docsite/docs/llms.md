@@ -41,6 +41,7 @@ if (compiled.success) {
 | `compileExpression` | `(expr, options?) => CompileResult` | `{success: true, result: CompiledExpression}` or failure |
 | `safeCompileExpression` | `(expr, options?) => CompiledExpression \| null` | Compiled expression or `null` on error |
 | `getCompiledCode` | `(expr, options?) => string \| null` | Compiled code string or `null` on error |
+| `analyzeExpression` | `(expr, options?) => AnalyzeResult` | `{success: true, ast, identifiers, functions}` or the compile failure; never evaluates |
 
 `CompiledExpression` has: `evaluate(context) => unknown` (throws on runtime errors), `source: string`, `compiledCode: string`.
 
@@ -60,8 +61,19 @@ type ExpressionOptions = {
   enableArrays?: boolean;        // Default: true
   enableTemplateStrings?: boolean; // Default: false
   enableArrowFunctions?: boolean;  // Default: false
+  caseInsensitiveNames?: boolean;  // Default: false (keywords + function names in any case)
+  semantics?: 'javascript' | 'spreadsheet'; // Default: 'javascript'
+  strictFunctions?: boolean;       // Default: false (unknown function = compile error)
 };
 ```
+
+### Spreadsheet-style options (all opt-in)
+
+- `caseInsensitiveNames: true`: keywords match in any case (`AND`, `NULL`, `IF ... THEN ... ELSE`); a called name with no exact custom/built-in match calls the case variant (`CONCAT` -> `concat`; exact match first, custom before built-in). Identifiers and context functions stay case-sensitive. A non-lowercase `IF`/`AND`/`OR` in operand position directly before `(` is a function call (`IF(a, b, c)`; register it via `customFunctions`); after an operand `AND (`/`OR (` stay operators.
+- `semantics: 'spreadsheet'`: null propagates through arithmetic (`null + 1` -> `null`); `x / 0` and `x % 0` -> `null`; numeric strings and booleans act as numbers (`'100' + 1` -> `101`, `'100' == 100` -> `true`); `+` concatenates only with a non-numeric operand (`'a' + 1` -> `'a1'`, `'5' + '5'` -> `10`); comparisons numeric when both sides numeric, else text (`'10' < '9'` -> `false`); comparison with null -> `false`; `==`/`!=` null-aware (`missing == null` -> `true`, `'' == null` -> `false`). Logical operators, conditionals and functions unchanged.
+- `strictFunctions: true`: compile fails with `UNKNOWN_FUNCTION` (`CompilationError`) for a call to a name that is not a custom or built-in function, even in an untaken branch. Arrow parameters may be called; context functions are refused; `obj.method()` is not checked.
+- `analyzeExpression(expr, options?)`: same parse + validation as compile; `identifiers` = context paths once in source order (`user.address.city`, `items.0`, computed index ends the path), excluding arrow params and function names; `functions` = called names as written.
+- Identifiers may start with `$` (`$CURRENT_USER`, `$record.status`); a lone `$` is a tokenize error.
 
 ## Expression Language
 
@@ -226,6 +238,7 @@ Compile time: `maxExpressionLength` (source chars), `maxComplexity` (AST nodes).
 | `PROPERTY_ACCESS_DENIED` | Blocked by property security policy |
 | `FUNCTION_ACCESS_DENIED` | Function name blocked by security policy |
 | `UNSUPPORTED_FUNCTION_CALL` | Dynamic function reference (e.g. calling a call result) |
+| `UNKNOWN_FUNCTION` | Call to an unknown function name with `strictFunctions: true` (compile time) |
 
 `errorType` is `TokenizationError`, `ParseError`, `CompilationError` (post-parse checks) or `EvaluationError`.
 
@@ -241,7 +254,7 @@ const { evaluateExpression } = require('@taioncom/taion-expression');
 
 ## TypeScript Types
 
-Key exported types: `ExpressionOptions`, `EvaluateResult`, `EvaluateSuccess`, `EvaluateFailure`, `CompileResult`, `CompileSuccess`, `CompileFailure`, `CompiledExpression`, `ExpressionNode`, `BinaryExpressionNode`, `CallExpressionNode`, `ConditionalExpressionNode`, `IdentifierNode`, `LiteralNode`, `MemberExpressionNode`, `UnaryExpressionNode`.
+Key exported types: `ExpressionOptions`, `AnalyzeResult`, `AnalyzeSuccess`, `EvaluateResult`, `EvaluateSuccess`, `EvaluateFailure`, `CompileResult`, `CompileSuccess`, `CompileFailure`, `CompiledExpression`, `ExpressionNode`, `BinaryExpressionNode`, `CallExpressionNode`, `ConditionalExpressionNode`, `IdentifierNode`, `LiteralNode`, `MemberExpressionNode`, `UnaryExpressionNode`.
 
 ## Common Patterns
 

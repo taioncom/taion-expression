@@ -19,6 +19,8 @@ sidebar_position: 2
 
 The `+` operator also concatenates strings: `"Hello" + " World"` produces `"Hello World"`.
 
+The `semantics: 'spreadsheet'` option changes how operators treat null, zero divisors and numeric strings; see [Spreadsheet-style Expressions](../guides/spreadsheet-style.md#semantics-spreadsheet).
+
 ## Comparison Operators
 
 | Operator | Description            | Example    | Result  |
