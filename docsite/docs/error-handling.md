@@ -75,6 +75,7 @@ These are detected after parsing, before the expression is evaluated.
 | `TEMPLATE_STRINGS_DISABLED` | Template string used but `enableTemplateStrings` is false |
 | `ARROW_FUNCTIONS_DISABLED` | Arrow function used but `enableArrowFunctions` is false |
 | `INVALID_REGEX_PATTERN` | Invalid regex in `allowedProperties`/`deniedProperties` |
+| `INVALID_TIME_ZONE` | `timeZone` is not a time zone the runtime knows |
 | `COMPILE_ERROR` | Other error while setting up evaluation |
 
 ### Evaluation Errors (`errorType: "EvaluationError"`)

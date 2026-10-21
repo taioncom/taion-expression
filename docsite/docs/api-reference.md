@@ -120,10 +120,11 @@ type ExpressionOptions = {
   caseInsensitiveNames?: boolean;      // default: false
   semantics?: 'javascript' | 'spreadsheet'; // default: 'javascript'
   strictFunctions?: boolean;           // default: false
+  timeZone?: string;                   // default: undefined
 };
 ```
 
-`caseInsensitiveNames`, `semantics` and `strictFunctions` are described in [Spreadsheet-style Expressions](./guides/spreadsheet-style.md).
+`caseInsensitiveNames`, `semantics` and `strictFunctions` are described in [Spreadsheet-style Expressions](./guides/spreadsheet-style.md). `timeZone` (an IANA zone) makes a `Date` compared with a date alone (`'2026-10-01'`) compare by calendar day in that zone; see [Operators](./language-reference/operators.md).
 
 ### AnalyzeResult
 

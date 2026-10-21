@@ -6,6 +6,10 @@ sidebar_position: 99
 
 ## 2.1.1
 
+### Added
+
+- `timeZone` option (an IANA zone, for example `'Europe/Helsinki'`): a `Date` compared with a date alone (`'2026-10-01'`) compares by calendar day in that zone, so `createdAt >= '2026-10-01'` means on or after October 1 there and `createdAt <= '2026-10-19'` includes the whole 19th. Without it a date alone is UTC midnight. An unknown zone fails compilation with `INVALID_TIME_ZONE`
+
 ### Fixed
 
 - A `Date` compared with an ISO 8601 date string compares by time, in both semantics and also with `==` / `!=`. Before, `<`/`<=`/`>`/`>=` were always false in the default semantics and compared the date's long text form (`"Thu Oct 15 2026 ..."`) in the spreadsheet semantics, so `createdAt > '2026-10-20'` could be true for October 15; `==` was always false

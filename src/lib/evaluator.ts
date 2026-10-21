@@ -119,8 +119,9 @@ const compareValues = (
   operator: string,
   left: unknown,
   right: unknown,
+  timeZone?: string,
 ): boolean => {
-  const dates = dateOperands(left, right);
+  const dates = dateOperands(left, right, timeZone);
   const bothStrings =
     !dates && typeof left === 'string' && typeof right === 'string';
   const [a, b] = dates ?? [
@@ -155,9 +156,16 @@ const evaluateBinaryExpression = (
   }
 
   const right = evaluateNode(node.right, context);
+  const timeZone = context.options.timeZone;
 
   if (context.options.semantics === 'spreadsheet') {
-    return spreadsheetBinary(node.operator, left, right, MAX_STRING_LENGTH);
+    return spreadsheetBinary(
+      node.operator,
+      left,
+      right,
+      MAX_STRING_LENGTH,
+      timeZone,
+    );
   }
 
   switch (node.operator) {
@@ -179,13 +187,13 @@ const evaluateBinaryExpression = (
     case '<':
     case '>=':
     case '<=':
-      return compareValues(node.operator, left, right);
+      return compareValues(node.operator, left, right, timeZone);
     case '==': {
-      const dates = dateOperands(left, right);
+      const dates = dateOperands(left, right, timeZone);
       return dates ? dates[0] === dates[1] : left === right;
     }
     case '!=': {
-      const dates = dateOperands(left, right);
+      const dates = dateOperands(left, right, timeZone);
       return dates ? dates[0] !== dates[1] : left !== right;
     }
     default:

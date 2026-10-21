@@ -3,6 +3,7 @@ import {
   collectReferences,
   ExpressionReferences,
 } from './analyzer.js';
+import { isValidTimeZone } from './date-coercion.js';
 import { evaluateAST } from './evaluator.js';
 import { parse } from './parser.js';
 import { tokenize } from './tokenizer.js';
@@ -136,6 +137,7 @@ const normalizeOptions = (
   caseInsensitiveNames: options.caseInsensitiveNames === true,
   semantics: options.semantics ?? 'javascript',
   strictFunctions: options.strictFunctions === true,
+  timeZone: options.timeZone,
 });
 
 /**
@@ -248,6 +250,19 @@ const validateExpressionSource = (
       ),
       errorType: 'ParseError',
       errorCode: 'MAX_EXPRESSION_LENGTH_EXCEEDED',
+    };
+  }
+
+  const timeZone = normalizedOptions.timeZone;
+  if (timeZone !== undefined && !isValidTimeZone(timeZone)) {
+    return {
+      success: false,
+      error: createCompilationError(
+        `Unknown time zone: ${timeZone}`,
+        'INVALID_TIME_ZONE',
+      ),
+      errorType: 'CompilationError',
+      errorCode: 'INVALID_TIME_ZONE',
     };
   }
 

@@ -64,6 +64,7 @@ type ExpressionOptions = {
   caseInsensitiveNames?: boolean;  // Default: false (keywords + function names in any case)
   semantics?: 'javascript' | 'spreadsheet'; // Default: 'javascript'
   strictFunctions?: boolean;       // Default: false (unknown function = compile error)
+  timeZone?: string;               // Default: undefined (IANA zone; Date vs date alone by calendar day)
 };
 ```
 
@@ -102,7 +103,7 @@ type ExpressionOptions = {
 
 Additional: `? :` (ternary), `.` (member access), `[i]` (array index), `=>` (arrow function).
 
-`<`, `<=`, `>`, `>=` compare two strings alphabetically; otherwise both sides are converted to numbers (dates compare by time). A `Date` vs a `Date` or an ISO 8601 date string compares by time in `<`/`<=`/`>`/`>=` and `==`/`!=` (`createdAt >= '2026-10-01'`); a date alone is UTC midnight, a date-time without offset local time.
+`<`, `<=`, `>`, `>=` compare two strings alphabetically; otherwise both sides are converted to numbers (dates compare by time). A `Date` vs a `Date` or an ISO 8601 date string compares by time in `<`/`<=`/`>`/`>=` and `==`/`!=` (`createdAt >= '2026-10-01'`); a date alone is UTC midnight, a date-time without offset local time. With `timeZone` (IANA), a `Date` vs a date alone compares by calendar day in that zone (`createdAt <= '2026-10-19'` includes all of the 19th).
 
 ### Control Flow
 
@@ -238,6 +239,7 @@ Compile time: `maxExpressionLength` (source chars), `maxComplexity` (AST nodes).
 | `PROPERTY_ACCESS_DENIED` | Blocked by property security policy |
 | `FUNCTION_ACCESS_DENIED` | Function name blocked by security policy |
 | `UNSUPPORTED_FUNCTION_CALL` | Dynamic function reference (e.g. calling a call result) |
+| `INVALID_TIME_ZONE` | `timeZone` is not a time zone the runtime knows (compile time) |
 | `UNKNOWN_FUNCTION` | Call to an unknown function name with `strictFunctions: true` (compile time) |
 
 `errorType` is `TokenizationError`, `ParseError`, `CompilationError` (post-parse checks) or `EvaluationError`.

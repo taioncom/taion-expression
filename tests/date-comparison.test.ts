@@ -56,9 +56,12 @@ describe.each(modes)('Date vs ISO string (%s)', (_name, options) => {
     ["d <= '2026-13-45'", false],
     ["d < 'zzz'", false],
     ["invalid == '2026-10-15'", false],
-  ])('a non-date string or invalid date is not a date: %s', (expr, expected) => {
-    expect(value(expr, options)).toBe(expected);
-  });
+  ])(
+    'a non-date string or invalid date is not a date: %s',
+    (expr, expected) => {
+      expect(value(expr, options)).toBe(expected);
+    },
+  );
 
   test('two ISO strings still compare as text', () => {
     expect(value("'2026-10-02' > '2026-10-01'", options)).toBe(true);
@@ -105,6 +108,75 @@ describe('toDateTime / dateOperands', () => {
     expect(dateOperands(d, '2026-10-15T12:00:00Z')).toEqual([
       d.getTime(),
       d.getTime(),
+    ]);
+  });
+});
+
+describe.each(modes)(
+  'timeZone: Date against a date alone (%s)',
+  (_name, base) => {
+    // 2026-10-01 01:00 in Helsinki (UTC+3) is 2026-09-30 22:00 UTC
+    const ctx = {
+      early: new Date('2026-09-30T22:00:00Z'),
+      late: new Date('2026-10-19T20:59:00Z'),
+    };
+    const helsinki = { ...base, timeZone: 'Europe/Helsinki' };
+    const run = (expr: string, options: ExpressionOptions) => {
+      const result = evaluateExpression(expr, ctx, options);
+      expect(result.success).toBe(true);
+      return result.success ? result.result : undefined;
+    };
+
+    test.each([
+      ["early >= '2026-10-01'", true],
+      ["early < '2026-10-01'", false],
+      ["early == '2026-10-01'", true],
+      ["early != '2026-09-30'", true],
+      ["'2026-10-01' <= early", true],
+      ["late <= '2026-10-19'", true],
+      ["late < '2026-10-20'", true],
+      ["late > '2026-10-19'", false],
+    ])('Helsinki: %s is %s', (expr, expected) => {
+      expect(run(expr, helsinki)).toBe(expected);
+    });
+
+    test('without timeZone the date alone is UTC midnight', () => {
+      expect(run("early >= '2026-10-01'", base)).toBe(false);
+      expect(run("late <= '2026-10-19'", base)).toBe(false);
+    });
+
+    test('a date-time string still compares as an exact time', () => {
+      expect(run("early < '2026-10-01T00:00:00Z'", helsinki)).toBe(true);
+      expect(run("early == '2026-10-01T01:00:00+03:00'", helsinki)).toBe(true);
+    });
+
+    test('UTC zone matches the default', () => {
+      expect(run("early >= '2026-10-01'", { ...base, timeZone: 'UTC' })).toBe(
+        false,
+      );
+    });
+
+    test('an unknown zone fails compilation', () => {
+      const result = evaluateExpression("early >= '2026-10-01'", ctx, {
+        ...base,
+        timeZone: 'Mars/Olympus',
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.errorCode).toBe('INVALID_TIME_ZONE');
+    });
+  },
+);
+
+describe('dateOperands with timeZone', () => {
+  test('only a date alone becomes a day', () => {
+    const t = new Date('2026-09-30T22:00:00Z');
+    expect(dateOperands(t, '2026-10-01', 'Europe/Helsinki')).toEqual([
+      Date.UTC(2026, 9, 1),
+      Date.UTC(2026, 9, 1),
+    ]);
+    expect(dateOperands(t, t, 'Europe/Helsinki')).toEqual([
+      t.getTime(),
+      t.getTime(),
     ]);
   });
 });
