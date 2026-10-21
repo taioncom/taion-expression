@@ -78,5 +78,8 @@ describe('analyzeExpression', () => {
     expect(!long.success && long.errorCode).toBe(
       'MAX_EXPRESSION_LENGTH_EXCEEDED',
     );
+
+    const pattern = analyzeExpression('a.b', { allowedProperties: ['('] });
+    expect(!pattern.success && pattern.errorCode).toBe('INVALID_REGEX_PATTERN');
   });
 });

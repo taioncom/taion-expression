@@ -209,11 +209,20 @@ export const analyzeExpression = (
   expressionString: string,
   options: ExpressionOptions = {},
 ): AnalyzeResult => {
+  const normalizedOptions = normalizeOptions(options);
   const validated = validateExpressionSource(
     expressionString,
-    normalizeOptions(options),
+    normalizedOptions,
   );
   if (!validated.success) return validated;
+
+  // Run the interpreter setup for its checks (security patterns), unused otherwise
+  try {
+    evaluateAST(validated.ast, expressionString, normalizedOptions);
+  } catch (e) {
+    return compilationFailure(e as ExtendedError);
+  }
+
   return {
     success: true,
     ast: validated.ast,
