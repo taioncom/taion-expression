@@ -124,7 +124,7 @@ type ExpressionOptions = {
 };
 ```
 
-`caseInsensitiveNames`, `semantics` and `strictFunctions` are described in [Spreadsheet-style Expressions](./guides/spreadsheet-style.md). `timeZone` (an IANA zone) makes a `Date` compared with a date alone (`'2026-10-01'`) compare by calendar day in that zone; see [Operators](./language-reference/operators.md).
+`caseInsensitiveNames`, `semantics` and `strictFunctions` are described in [Spreadsheet-style Expressions](./guides/spreadsheet-style.md). `timeZone` (an IANA zone) makes an exact time (a `Date`, or an ISO date-time string with `Z` or an offset) compared with a date alone (`'2026-10-01'`) compare by calendar day in that zone; see [Operators](./language-reference/operators.md).
 
 ### AnalyzeResult
 

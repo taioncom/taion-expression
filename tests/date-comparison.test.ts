@@ -145,6 +145,29 @@ describe.each(modes)(
       expect(run("late <= '2026-10-19'", base)).toBe(false);
     });
 
+    test('an ISO date-time string with Z or an offset is an exact time too', () => {
+      const text = {
+        at: '2026-09-30T22:00:00.000Z',
+        off: '2026-10-01T01:00+03:00',
+      };
+      const go = (expr: string) => {
+        const result = evaluateExpression(expr, text, helsinki);
+        return result.success ? result.result : undefined;
+      };
+      expect(go("at >= '2026-10-01'")).toBe(true);
+      expect(go("at == '2026-10-01'")).toBe(true);
+      expect(go("'2026-10-01' == at")).toBe(true);
+      expect(go("off <= '2026-10-01'")).toBe(true);
+      // without an offset it is not an exact time: compares as text
+      expect(go("'2026-10-01T01:00' > '2026-10-01'")).toBe(true);
+      expect(go("'2026-10-01T01:00' == '2026-10-01'")).toBe(false);
+      // two exact times still compare as text
+      expect(go("at < '2026-10-01T00:00:00.000Z'")).toBe(true);
+      // without timeZone: text as before
+      const plain = evaluateExpression("at >= '2026-10-01'", text, base);
+      expect(plain.success && plain.result).toBe(false);
+    });
+
     test('a date-time string still compares as an exact time', () => {
       expect(run("early < '2026-10-01T00:00:00Z'", helsinki)).toBe(true);
       expect(run("early == '2026-10-01T01:00:00+03:00'", helsinki)).toBe(true);

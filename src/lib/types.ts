@@ -321,9 +321,10 @@ export type ExpressionOptions = {
   readonly strictFunctions?: boolean;
 
   /**
-   * IANA time zone (for example 'Europe/Helsinki'). When set, a `Date`
-   * compared with a date alone ('2026-10-01') compares by calendar day, the
-   * `Date` taken as its date in this zone. Without it the date alone is UTC
+   * IANA time zone (for example 'Europe/Helsinki'). When set, an exact time
+   * (a `Date`, or an ISO date-time string with `Z` or an offset) compared
+   * with a date alone ('2026-10-01') compares by calendar day, the time
+   * taken as its date in this zone. Without it the date alone is UTC
    * midnight. Compilation fails with INVALID_TIME_ZONE for an unknown zone.
    * Default: undefined
    */

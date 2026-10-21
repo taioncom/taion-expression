@@ -7,8 +7,9 @@
  * When one side is a `Date` and the other a `Date` or an ISO 8601 date
  * string, both are compared by time instead.
  *
- * With a `timeZone` option, a `Date` against a date alone (`2026-10-01`)
- * compares by calendar day: the `Date` becomes its date in that zone, so
+ * With a `timeZone` option, an exact time (a `Date`, or an ISO date-time
+ * string with `Z` or an offset) against a date alone (`2026-10-01`) compares
+ * by calendar day: the time becomes its date in that zone, so
  * `createdAt >= '2026-10-01'` means "on or after October 1 there" and
  * `createdAt <= '2026-10-19'` includes the whole 19th.
  */
@@ -22,6 +23,19 @@ const ISO_DATE =
 
 /** A date alone, without a time */
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** An ISO date-time with `Z` or an offset: an exact time */
+const INSTANT = /(?:Z|[+-]\d{2}:?\d{2})$/;
+
+const isDateOnly = (value: unknown): value is string =>
+  typeof value === 'string' && DATE_ONLY.test(value);
+
+const isInstant = (value: unknown): boolean =>
+  value instanceof Date ||
+  (typeof value === 'string' &&
+    !DATE_ONLY.test(value) &&
+    ISO_DATE.test(value) &&
+    INSTANT.test(value));
 
 const dayFormats = new Map<string, Intl.DateTimeFormat>();
 
@@ -72,24 +86,40 @@ export const toDateTime = (value: unknown): number | null => {
 /**
  * Both operands as times when at least one is a `Date` and the other is a
  * `Date` or an ISO 8601 date string; null otherwise (the caller compares as
- * before). With `timeZone`, a `Date` against a date alone gives both as days.
+ * before). With `timeZone`, an exact time against a date alone gives both as
+ * days in that zone.
  */
 export const dateOperands = (
   left: unknown,
   right: unknown,
   timeZone?: string,
 ): readonly [number, number] | null => {
+  if (timeZone) {
+    const days = zonedDays(left, right, timeZone);
+    if (days) return days;
+  }
   if (!(left instanceof Date) && !(right instanceof Date)) return null;
   const a = toDateTime(left);
   const b = toDateTime(right);
-  if (a === null || b === null) return null;
-  if (timeZone) {
-    if (typeof right === 'string' && DATE_ONLY.test(right)) {
-      return [dayInZone(a, timeZone), b];
-    }
-    if (typeof left === 'string' && DATE_ONLY.test(left)) {
-      return [a, dayInZone(b, timeZone)];
-    }
-  }
-  return [a, b];
+  return a !== null && b !== null ? [a, b] : null;
+};
+
+/** An exact time and a date alone as days in `timeZone`, else null */
+const zonedDays = (
+  left: unknown,
+  right: unknown,
+  timeZone: string,
+): readonly [number, number] | null => {
+  const [instant, date, flipped] =
+    isInstant(left) && isDateOnly(right)
+      ? [left, right, false]
+      : isInstant(right) && isDateOnly(left)
+        ? [right, left, true]
+        : [null, null, false];
+  if (instant === null) return null;
+  const time = toDateTime(instant);
+  const day = toDateTime(date);
+  if (time === null || day === null) return null;
+  const zoned = dayInZone(time, timeZone);
+  return flipped ? [day, zoned] : [zoned, day];
 };

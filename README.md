@@ -63,7 +63,7 @@ settings.enabled
 
 `<`, `<=`, `>`, `>=` compare two strings alphabetically; otherwise both sides are converted to numbers.
 
-A `Date` compared with another `Date` or with an ISO 8601 date string (`'2026-10-15'`, `'2026-10-15T12:00:00Z'`) compares by time, with `==`/`!=` too: `createdAt >= '2026-10-01'`. A date alone is UTC midnight; a date-time without an offset is local time. With the `timeZone` option (an IANA zone such as `'Europe/Helsinki'`), a `Date` against a date alone compares by calendar day in that zone: `createdAt >= '2026-10-01'` is "on or after October 1 there" and `createdAt <= '2026-10-19'` includes the whole 19th; an unknown zone fails compilation with `INVALID_TIME_ZONE`.
+A `Date` compared with another `Date` or with an ISO 8601 date string (`'2026-10-15'`, `'2026-10-15T12:00:00Z'`) compares by time, with `==`/`!=` too: `createdAt >= '2026-10-01'`. A date alone is UTC midnight; a date-time without an offset is local time. With the `timeZone` option (an IANA zone such as `'Europe/Helsinki'`), an exact time (a `Date`, or an ISO date-time string with `Z` or an offset) against a date alone compares by calendar day in that zone: `createdAt >= '2026-10-01'` is "on or after October 1 there" and `createdAt <= '2026-10-19'` includes the whole 19th; an unknown zone fails compilation with `INVALID_TIME_ZONE`.
 
 #### Logical Operators
 

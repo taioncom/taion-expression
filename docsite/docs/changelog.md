@@ -8,7 +8,7 @@ sidebar_position: 99
 
 ### Added
 
-- `timeZone` option (an IANA zone, for example `'Europe/Helsinki'`): a `Date` compared with a date alone (`'2026-10-01'`) compares by calendar day in that zone, so `createdAt >= '2026-10-01'` means on or after October 1 there and `createdAt <= '2026-10-19'` includes the whole 19th. Without it a date alone is UTC midnight. An unknown zone fails compilation with `INVALID_TIME_ZONE`
+- `timeZone` option (an IANA zone, for example `'Europe/Helsinki'`): an exact time (a `Date`, or an ISO date-time string with `Z` or an offset, such as `'2026-09-30T22:00:00.000Z'`) compared with a date alone (`'2026-10-01'`) compares by calendar day in that zone, so `createdAt >= '2026-10-01'` means on or after October 1 there and `createdAt <= '2026-10-19'` includes the whole 19th. Without it a date alone is UTC midnight. An unknown zone fails compilation with `INVALID_TIME_ZONE`
 
 ### Fixed
 
