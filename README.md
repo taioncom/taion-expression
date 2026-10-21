@@ -63,6 +63,8 @@ settings.enabled
 
 `<`, `<=`, `>`, `>=` compare two strings alphabetically; otherwise both sides are converted to numbers.
 
+A `Date` compared with another `Date` or with an ISO 8601 date string (`'2026-10-15'`, `'2026-10-15T12:00:00Z'`) compares by time, with `==`/`!=` too: `createdAt >= '2026-10-01'`. A date alone is UTC midnight; a date-time without an offset is local time.
+
 #### Logical Operators
 
 - AND: `&&` or `and`

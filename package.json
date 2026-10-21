@@ -1,6 +1,6 @@
 {
   "name": "@taioncom/taion-expression",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "A safe, sandboxed expression evaluator for JavaScript/TypeScript with large set of built-in functions",
   "author": "Taion <info@taion.com>",
   "copyright": "Copyright (c) 2026 Taion Oy",

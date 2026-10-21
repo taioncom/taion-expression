@@ -1,3 +1,4 @@
+import { dateOperands } from './date-coercion.js';
 import { createCompilationError } from './types.js';
 
 /**
@@ -8,6 +9,8 @@ import { createCompilationError } from './types.js';
  * - numeric strings ("100", "-3.5") act as numbers in arithmetic, comparison
  *   and equality; booleans count as 1 and 0
  * - `+` concatenates only when an operand is not numeric
+ * - a `Date` and a `Date` or ISO 8601 date string compare by time; a `Date`
+ *   against other non-numeric text is unordered (comparisons are false)
  * - comparisons are numeric when both sides are numeric, else they compare
  *   the text (ISO dates compare correctly as text); a comparison with null is
  *   false
@@ -86,6 +89,8 @@ const equals = (left: unknown, right: unknown): boolean => {
   if (isNullish(left) || isNullish(right)) {
     return isNullish(left) && isNullish(right);
   }
+  const dates = dateOperands(left, right);
+  if (dates) return dates[0] === dates[1];
   const a = toSpreadsheetNumber(left);
   const b = toSpreadsheetNumber(right);
   return a !== null && b !== null ? a === b : String(left) === String(right);
@@ -96,10 +101,16 @@ const equals = (left: unknown, right: unknown): boolean => {
  */
 const compare = (operator: string, left: unknown, right: unknown): boolean => {
   if (isNullish(left) || isNullish(right)) return false;
+  const dates = dateOperands(left, right);
   const a = toSpreadsheetNumber(left);
   const b = toSpreadsheetNumber(right);
-  const [x, y] =
-    a !== null && b !== null ? [a, b] : [String(left), String(right)];
+  const numeric = a !== null && b !== null;
+  // A date against text that is neither a date nor a number has no order
+  // (comparing the date's long text form would be arbitrary).
+  if (!dates && !numeric && (left instanceof Date || right instanceof Date)) {
+    return false;
+  }
+  const [x, y] = dates ?? (numeric ? [a, b] : [String(left), String(right)]);
   switch (operator) {
     case '>':
       return x > y;

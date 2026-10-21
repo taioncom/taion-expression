@@ -56,6 +56,8 @@ A custom `IF` receives evaluated arguments, so both branches are evaluated; use 
 | | `'5' + '5'` | `10` |
 | Comparisons are numeric when both sides are numeric | `'10' < '9'` | `false` |
 | ...otherwise they compare text (ISO dates compare correctly) | `'2026-01-02' > '2026-01-01'` | `true` |
+| A date and an ISO date string compare by time | `createdAt >= '2026-10-01'` | `true` for a later date |
+| A date against other text is unordered | `createdAt > 'banana'` | `false` |
 | A comparison with null is false | `missing > -1` | `false` |
 | `==` / `!=` compare numbers by value, other values as text | `'100' == 100` | `true` |
 | `==` / `!=` are null-aware | `missing == null` | `true` |

@@ -34,6 +34,8 @@ The `semantics: 'spreadsheet'` option changes how operators treat null, zero div
 
 Comparison operators return boolean values. Equality uses strict comparison (`===` semantics) -- no type coercion is performed. Two dates are equal when they represent the same time.
 
+A `Date` compared with another `Date` or with an ISO 8601 date string (`'2026-10-15'`, `'2026-10-15T12:00:00Z'`) compares by time, with `==`/`!=` too: `createdAt >= '2026-10-01'`. A date alone is UTC midnight; a date-time without an offset is local time. A string that is not an ISO date is not converted.
+
 `>`, `<`, `>=` and `<=` compare two strings alphabetically (`"apple" < "banana"` is `true`); in all other cases both sides are converted to numbers, so dates compare by time.
 
 ## Logical Operators

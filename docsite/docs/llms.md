@@ -102,7 +102,7 @@ type ExpressionOptions = {
 
 Additional: `? :` (ternary), `.` (member access), `[i]` (array index), `=>` (arrow function).
 
-`<`, `<=`, `>`, `>=` compare two strings alphabetically; otherwise both sides are converted to numbers (dates compare by time).
+`<`, `<=`, `>`, `>=` compare two strings alphabetically; otherwise both sides are converted to numbers (dates compare by time). A `Date` vs a `Date` or an ISO 8601 date string compares by time in `<`/`<=`/`>`/`>=` and `==`/`!=` (`createdAt >= '2026-10-01'`); a date alone is UTC midnight, a date-time without offset local time.
 
 ### Control Flow
 

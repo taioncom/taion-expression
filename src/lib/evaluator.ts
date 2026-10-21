@@ -2,6 +2,7 @@ import {
   builtInFunctions,
   contextPassingFunctions,
 } from './functions/index.js';
+import { dateOperands } from './date-coercion.js';
 import { resolveLibraryFunction } from './function-resolver.js';
 import {
   checkSecurityLimits,
@@ -119,9 +120,13 @@ const compareValues = (
   left: unknown,
   right: unknown,
 ): boolean => {
-  const bothStrings = typeof left === 'string' && typeof right === 'string';
-  const a = bothStrings ? left : Number(left);
-  const b = bothStrings ? right : Number(right);
+  const dates = dateOperands(left, right);
+  const bothStrings =
+    !dates && typeof left === 'string' && typeof right === 'string';
+  const [a, b] = dates ?? [
+    bothStrings ? left : Number(left),
+    bothStrings ? right : Number(right),
+  ];
   switch (operator) {
     case '>':
       return a > b;
@@ -175,16 +180,14 @@ const evaluateBinaryExpression = (
     case '>=':
     case '<=':
       return compareValues(node.operator, left, right);
-    case '==':
-      if (left instanceof Date && right instanceof Date) {
-        return left.getTime() === right.getTime();
-      }
-      return left === right;
-    case '!=':
-      if (left instanceof Date && right instanceof Date) {
-        return left.getTime() !== right.getTime();
-      }
-      return left !== right;
+    case '==': {
+      const dates = dateOperands(left, right);
+      return dates ? dates[0] === dates[1] : left === right;
+    }
+    case '!=': {
+      const dates = dateOperands(left, right);
+      return dates ? dates[0] !== dates[1] : left !== right;
+    }
     default:
       return null;
   }

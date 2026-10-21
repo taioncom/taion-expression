@@ -79,6 +79,6 @@ date(2024, 3, 15)            // March 15, 2024
 parseDate("2024-03-15")      // March 15, 2024
 ```
 
-Dates support comparison operators (`>`, `<`, `>=`, `<=`) and subtraction (`-`) via numeric coercion. Use `type(d)` to check for `"date"` and `isDate(d)` for type checking.
+Dates support comparison operators (`>`, `<`, `>=`, `<=`) and subtraction (`-`) via numeric coercion. A date also compares with an ISO 8601 date string by time, including `==` / `!=` (`createdAt >= '2026-10-01'`). Use `type(d)` to check for `"date"` and `isDate(d)` for type checking.
 
 See [Built-in Functions](./built-in-functions.md#date-functions) for the full list of date creation, extraction, formatting, and arithmetic functions.
