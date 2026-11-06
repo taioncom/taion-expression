@@ -1,6 +1,12 @@
 import { customDefinitionOf, kindsOf, paramAt } from './custom-functions.js';
 import { resolveLibraryFunction } from './function-resolver.js';
-import { getPropertyPath } from './security.js';
+import {
+  compilePatterns,
+  deniedSegmentOf,
+  getPropertyPath,
+  isPropertyAccessAllowed,
+  PropertyPolicy,
+} from './security.js';
 import { CompileFailure, parseExpression } from './taion-expression.js';
 import {
   createCompilationError,
@@ -31,14 +37,16 @@ export type EmitUnaryOperator = '-' | '+' | '!';
 
 /**
  * An argument of a call: an emitted value, a field path (a custom
- * function's `field` parameter), or an arrow function whose body is emitted
- * when the emitter asks for it
+ * function's `field` parameter; `local` when it starts with an arrow
+ * function's parameter), or an arrow function whose body is emitted when the
+ * emitter asks for it
  */
 export type EmitArg<T> =
   | { readonly kind: 'value'; readonly value: T; readonly node: ExpressionNode }
   | {
       readonly kind: 'field';
       readonly path: string;
+      readonly local: boolean;
       readonly node: ExpressionNode;
     }
   | {
@@ -113,14 +121,19 @@ export type EmitSuccess<T> = {
 export type EmitResult<T> = EmitSuccess<T> | CompileFailure;
 
 /**
- * An error for what an emitter cannot express, positioned at the node
+ * An error for what an emitter cannot express, positioned at the node. The
+ * message is the emitter's own, for the expression's author, so it carries
+ * the position but not the node type (that is in `nodeType`).
  */
 export const createEmitError = (
   message: string,
   node: ExpressionNode,
   code = 'UNSUPPORTED',
 ): ExtendedError =>
-  createCompilationError(message, code, node.type, node.location);
+  Object.assign(
+    createCompilationError(message, code, undefined, node.location),
+    { nodeType: node.type },
+  );
 
 const unsupported = (what: string, node: ExpressionNode): ExtendedError =>
   createEmitError(`${what} is not supported by this target`, node);
@@ -128,32 +141,57 @@ const unsupported = (what: string, node: ExpressionNode): ExtendedError =>
 /** The root name of a path (`order` of `order.total`) */
 const rootOf = (path: string): string => path.split('.')[0] as string;
 
+const denied = (name: string, node: ExpressionNode): ExtendedError =>
+  createEmitError(
+    `Access to property '${name}' is not allowed by security policy`,
+    node,
+    'PROPERTY_ACCESS_DENIED',
+  );
+
+/**
+ * Check a path against the property policy as reading it would; whether it
+ * starts at an arrow parameter (not checked) is returned
+ */
+const checkPath = (
+  path: string,
+  node: ExpressionNode,
+  policy: PropertyPolicy,
+  scope: ReadonlySet<string>,
+): boolean => {
+  const local = scope.has(rootOf(path));
+  const segment = deniedSegmentOf(path, policy, local);
+  if (segment !== null) throw denied(segment, node);
+  return local;
+};
+
 /**
  * Walk a node bottom-up into the emitter's target. `scope` holds the arrow
- * parameters in scope.
+ * parameters in scope; paths are checked against the property policy.
  */
 const emitNode = <T>(
   node: ExpressionNode,
   emitter: Emitter<T>,
-  options: ExpressionOptions,
+  policy: PropertyPolicy,
   scope: ReadonlySet<string>,
 ): T => {
+  const { options } = policy;
   const emit = (child: ExpressionNode, inner = scope): T =>
-    emitNode(child, emitter, options, inner);
+    emitNode(child, emitter, policy, inner);
+  const identifier = (path: string): T =>
+    emitter.identifier(path, node, checkPath(path, node, policy, scope));
   switch (node.type) {
     case 'Literal':
       return emitter.literal(node.value, node);
     case 'Identifier':
-      return emitter.identifier(node.name, node, scope.has(node.name));
+      return identifier(node.name);
     case 'MemberExpression': {
       const path = getPropertyPath(node);
       if (path === null) throw unsupported('A computed member', node);
-      return emitter.identifier(path, node, scope.has(rootOf(path)));
+      return identifier(path);
     }
     case 'ArrayIndex': {
       const path = getPropertyPath(node);
-      if (path !== null)
-        return emitter.identifier(path, node, scope.has(rootOf(path)));
+      if (path !== null) return identifier(path);
       if (!emitter.index) throw unsupported('Indexing', node);
       return emitter.index(emit(node.array), emit(node.index), node);
     }
@@ -195,7 +233,14 @@ const emitNode = <T>(
       if (node.callee.type !== 'Identifier')
         throw unsupported('A dynamic function call', node);
       const written = node.callee.name;
-      const name = resolveLibraryFunction(written, options)?.name ?? written;
+      const resolved = resolveLibraryFunction(written, options);
+      // Custom and built-in names are exempt from the allowlist, others not
+      if (
+        !isPropertyAccessAllowed(written, written, policy, resolved !== null)
+      ) {
+        throw denied(written, node);
+      }
+      const name = resolved?.name ?? written;
       const params = customDefinitionOf(node, options)?.params;
       const args = node.params.map((arg, i): EmitArg<T> => {
         const kinds = kindsOf(paramAt(params, i));
@@ -215,7 +260,12 @@ const emitNode = <T>(
             ? getPropertyPath(arg)
             : null;
         return path !== null
-          ? { kind: 'field', path, node: arg }
+          ? {
+              kind: 'field',
+              path,
+              local: checkPath(path, arg, policy, scope),
+              node: arg,
+            }
           : { kind: 'value', value: emit(arg), node: arg };
       });
       return emitter.call(name, args, node);
@@ -241,7 +291,20 @@ export const emitExpression = <T>(
   try {
     return {
       success: true,
-      result: emitNode(parsed.ast, emitter, parsed.options, new Set()),
+      result: emitNode(
+        parsed.ast,
+        emitter,
+        {
+          options: parsed.options,
+          compiledAllowedProperties: compilePatterns(
+            parsed.options.allowedProperties,
+          ),
+          compiledDeniedProperties: compilePatterns(
+            parsed.options.deniedProperties,
+          ),
+        },
+        new Set(),
+      ),
       identifiers: parsed.identifiers,
       functions: parsed.functions,
     };

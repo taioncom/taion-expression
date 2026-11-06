@@ -106,6 +106,40 @@ const patternMatches = (
 ): boolean => pattern.test(fullPath) || pattern.test(leafName);
 
 /**
+ * What the property policy is decided by: the options and the compiled
+ * allow and deny patterns
+ */
+export type PropertyPolicy = Pick<
+  EvaluatorContext,
+  'options' | 'compiledAllowedProperties' | 'compiledDeniedProperties'
+>;
+
+/**
+ * The first segment of a path the property policy blocks, or null, checked as
+ * reading the path would be: every segment for prototype vectors and denied
+ * patterns, the last one for the allowlist. With `localRoot` the first segment
+ * is an arrow parameter and is not checked.
+ */
+export const deniedSegmentOf = (
+  path: string,
+  policy: PropertyPolicy,
+  localRoot: boolean,
+): string | null => {
+  const segments = path.split('.');
+  const denied = segments.findIndex(
+    (segment, i) =>
+      !(i === 0 && localRoot) &&
+      !isPropertyAccessAllowed(
+        segment,
+        segments.slice(0, i + 1).join('.'),
+        policy,
+        i < segments.length - 1,
+      ),
+  );
+  return denied < 0 ? null : (segments[denied] as string);
+};
+
+/**
  * Check if a property access is allowed based on security settings.
  * Prototype vectors and denied patterns are always blocked. The allowlist
  * restricts values read out of the context, so `intermediate` accesses that only
@@ -114,7 +148,7 @@ const patternMatches = (
 export const isPropertyAccessAllowed = (
   leafName: string,
   fullPath: string,
-  context: EvaluatorContext,
+  context: PropertyPolicy,
   intermediate = false,
 ): boolean => {
   const { options, compiledAllowedProperties, compiledDeniedProperties } =

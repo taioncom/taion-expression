@@ -186,7 +186,7 @@ customFunctions: {
 // RUNNINGSUM(amount)   RUNNINGSUM(r => r.price * r.qty)
 ```
 
-`emitExpression(expr, emitter, options)` turns a validated expression into another target (SQL...) bottom-up: `emitter = { literal(v,node), identifier(path,node,local), unary(op,x,node), binary(op,l,r,node), conditional(t,a,b,node), call(name,args,node), array?, index?, template? }`; operators arrive canonical (`==`, `&&`, `||`, `!`); call args are `{kind:'value',value}`, `{kind:'field',path}` or `{kind:'lambda',params,body()}`. Throw `createEmitError(msg, node, code?)` for what the target cannot express: the result is a positioned compile failure. `parseExpression(expr, options)` gives the validated AST and references.
+`emitExpression(expr, emitter, options)` turns a validated expression into another target (SQL...) bottom-up: `emitter = { literal(v,node), identifier(path,node,local), unary(op,x,node), binary(op,l,r,node), conditional(t,a,b,node), call(name,args,node), array?, index?, template? }`; operators arrive canonical (`==`, `&&`, `||`, `!`); call args are `{kind:'value',value}`, `{kind:'field',path,local}` or `{kind:'lambda',params,body()}`. Paths and context function names are checked against the property policy (`PROPERTY_ACCESS_DENIED`). The emitter does not see `semantics`: build it for the semantics you use. Throw `createEmitError(msg, node, code?)` for what the target cannot express: the result is a positioned compile failure. `parseExpression(expr, options)` gives the validated AST and references.
 
 `describeFunctions(options)` lists callable functions: built-ins `{ name, source: 'builtin', category }` (higher-order only with `enableArrowFunctions`) and custom `{ name, source: 'custom', category?, description?, params?, returns? }`.
 

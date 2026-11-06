@@ -9,6 +9,7 @@ import {
   checkSecurityLimits,
   compilePatterns,
   createSecurityContext,
+  deniedSegmentOf,
   EvaluatorContext,
   getPropertyPath,
   isPropertyAccessAllowed,
@@ -311,20 +312,16 @@ const evaluateCallExpression = (
 
 /**
  * Check a field argument's path against the property policy as reading it
- * would: every segment for prototype vectors and denied patterns, the last
- * one for the allowlist. A path starting at an arrow parameter skips that
- * parameter, like reading it does.
+ * would (a path starting at an arrow parameter skips that parameter)
  */
 const checkFieldPath = (path: string, context: EvaluatorContext): void => {
-  const segments = path.split('.');
-  segments.forEach((segment, i) => {
-    if (i === 0 && hasOwn(context.localVariables, segment)) return;
-    const fullPath = segments.slice(0, i + 1).join('.');
-    const intermediate = i < segments.length - 1;
-    if (!isPropertyAccessAllowed(segment, fullPath, context, intermediate)) {
-      throw denyAccess(segment);
-    }
-  });
+  const root = path.split('.')[0] as string;
+  const denied = deniedSegmentOf(
+    path,
+    context,
+    hasOwn(context.localVariables, root),
+  );
+  if (denied !== null) throw denyAccess(denied);
 };
 
 /**

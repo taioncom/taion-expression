@@ -4,7 +4,7 @@
 
 ### Added
 
-- `emitExpression(expr, emitter, options)`: turn a validated expression into another target (SQL, another language) through an emitter with one method per kind of node (`literal`, `identifier`, `unary`, `binary`, `conditional`, `call`, optional `array`, `index`, `template`), called bottom-up with canonical operators. Call arguments come as values, field paths (custom `field` parameters) or lambdas emitted on demand. `createEmitError` makes a positioned failure for what the target cannot express
+- `emitExpression(expr, emitter, options)`: turn a validated expression into another target (SQL, another language) through an emitter with one method per kind of node (`literal`, `identifier`, `unary`, `binary`, `conditional`, `call`, optional `array`, `index`, `template`), called bottom-up with canonical operators. Call arguments come as values, field paths (custom `field` parameters, with `local`) or lambdas emitted on demand. Paths and context function names are checked against the property policy like evaluation (`PROPERTY_ACCESS_DENIED`). `createEmitError` makes a positioned failure for what the target cannot express (its message is the emitter's own plus the position)
 - `parseExpression(expr, options)`: the validated AST and its references, without setting up evaluation
 - Exported types `Emitter`, `EmitArg`, `EmitResult`, `EmitSuccess`, `EmitBinaryOperator`, `EmitUnaryOperator`
 

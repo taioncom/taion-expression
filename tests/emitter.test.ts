@@ -110,13 +110,70 @@ describe('emitExpression', () => {
     expect(r.success).toBe(false);
     if (!r.success) {
       expect(r.errorCode).toBe('UNSUPPORTED');
-      expect(r.error.message).toContain('No SQL for upper');
+      expect(r.error.message).toBe('No SQL for upper at line 2, column 3');
+      expect((r.error as { nodeType?: string }).nodeType).toBe(
+        'CallExpression',
+      );
       expect(r.error.line).toBe(2);
     }
     // An optional node kind left out
     const noArrays = { ...printer, array: undefined };
     const a = emitExpression('[1]', noArrays, options);
     expect(a.success ? '' : a.errorCode).toBe('UNSUPPORTED');
+  });
+
+  test('checks paths against the property policy like evaluation', () => {
+    const code = (expr: string, extra: ExpressionOptions = {}) => {
+      const r = emitExpression(expr, printer, { ...options, ...extra });
+      return r.success ? r.result : r.errorCode;
+    };
+    expect(code('__proto__')).toBe('PROPERTY_ACCESS_DENIED');
+    expect(code('a.constructor + 1')).toBe('PROPERTY_ACCESS_DENIED');
+    expect(code('SUM(user.password)', { deniedProperties: ['password'] })).toBe(
+      'PROPERTY_ACCESS_DENIED',
+    );
+    expect(code('secret', { allowedProperties: ['user.name'] })).toBe(
+      'PROPERTY_ACCESS_DENIED',
+    );
+    expect(code('user.name', { allowedProperties: ['user.name'] })).toBe(
+      'user.name',
+    );
+    // An arrow parameter is not a context path
+    expect(code('SUM(r => r.qty)', { deniedProperties: ['r'] })).toBe(
+      'SUM((r) => @r.qty)',
+    );
+    // A context function name is subject to the allowlist
+    expect(
+      code('helper(1)', { strictFunctions: false, allowedProperties: ['x'] }),
+    ).toBe('PROPERTY_ACCESS_DENIED');
+    const r = emitExpression('1 +\n  secret', printer, {
+      ...options,
+      deniedProperties: ['secret'],
+    });
+    expect(r.success ? '' : r.error.message).toBe(
+      "Access to property 'secret' is not allowed by security policy at line 2, column 3",
+    );
+  });
+
+  test('marks a field path starting at an arrow parameter as local', () => {
+    const fields: EmitArg<string>[] = [];
+    const recorder: Emitter<string> = {
+      ...printer,
+      call: (name, args, node) => {
+        fields.push(...args.filter((a) => a.kind === 'field'));
+        return printer.call(name, args, node);
+      },
+    };
+    emitExpression('map(rows, r => SUM(r.amount)) + SUM(amount)', recorder, {
+      ...options,
+      enableArrowFunctions: true,
+    });
+    expect(
+      fields.map((f) => (f.kind === 'field' ? [f.path, f.local] : null)),
+    ).toEqual([
+      ['r.amount', true],
+      ['amount', false],
+    ]);
   });
 
   test('fails like compilation on invalid input', () => {

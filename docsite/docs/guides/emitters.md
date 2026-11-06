@@ -4,7 +4,7 @@ sidebar_position: 6
 
 # Emitting to Other Targets
 
-`emitExpression` turns an expression into something other than a value: SQL for a database, code in another language, a description. The library parses and validates the expression exactly as for evaluation (limits, feature flags, `strictFunctions`, custom function parameters), then walks it bottom-up and calls your **emitter**, one method per kind of node. The target stays in your code; the library knows nothing about SQL.
+`emitExpression` turns an expression into something other than a value: SQL for a database, code in another language, a description. The library parses and validates the expression exactly as for evaluation (limits, feature flags, `strictFunctions`, custom function parameters, and the property policy: a path or context function name blocked by `deniedProperties`, `allowedProperties` or the prototype guard fails with `PROPERTY_ACCESS_DENIED`), then walks it bottom-up and calls your **emitter**, one method per kind of node. The target stays in your code; the library knows nothing about SQL.
 
 ```typescript
 import { createEmitError, emitExpression, Emitter } from '@taioncom/taion-expression';
@@ -46,9 +46,13 @@ emitExpression('round(price * qty, 2) > 100 and not archived', toSql, { strictFu
 Each argument of a call is an `EmitArg`:
 
 - `{ kind: 'value', value }`: the emitted argument;
-- `{ kind: 'field', path }`: a context path given to a custom function's `field` parameter;
+- `{ kind: 'field', path, local }`: a context path given to a custom function's `field` parameter; `local` when it starts with an arrow function's parameter;
 - `{ kind: 'lambda', params, body }`: an arrow function; `body()` emits its body, where its parameters arrive as `local` identifiers.
+
+## Semantics
+
+The emitter receives operators, not their meaning: `+`, comparisons and `null` handling differ between `semantics: 'javascript'` and `'spreadsheet'`. The emitter does not get the options, so if your target depends on the semantics, build the emitter for the semantics you pass to `emitExpression`.
 
 ## Errors
 
-Throw `createEmitError(message, node, code?)` for anything the target cannot express (an unknown function: your mapping table is the allowlist). The result is then a failure shaped like a compile failure, with the node's line and column; invalid input fails as compilation does (`PARSE_ERROR`, `UNKNOWN_FUNCTION`, `INVALID_ARGUMENT` ...). `parseExpression(expr, options)` gives the validated AST and its references if you want to walk it yourself.
+Throw `createEmitError(message, node, code?)` for anything the target cannot express (an unknown function: your mapping table is the allowlist). The result is then a failure shaped like a compile failure, with the node's line and column (the message is yours plus `at line L, column C`; the node type is on `error.nodeType`); invalid input fails as compilation does (`PARSE_ERROR`, `UNKNOWN_FUNCTION`, `INVALID_ARGUMENT` ...). `parseExpression(expr, options)` gives the validated AST and its references if you want to walk it yourself.
