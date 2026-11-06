@@ -264,6 +264,29 @@ const result = evaluateExpression('greet(name)', { name: 'John' }, options);
 console.log(result.result); // "Hello, John!"
 ```
 
+A custom function can also be a definition with parameters (checked at compile time), field and arrow-function arguments, access to the context and a runtime value, and documentation listed by `describeFunctions()`:
+
+```javascript
+const options = {
+  customFunctions: {
+    RUNNINGSUM: {
+      fn: ({ runtime }, field) =>
+        runtime.rows
+          .slice(0, runtime.index + 1)
+          .reduce((sum, row) => sum + (typeof field === 'function' ? field(row) : row[field]), 0),
+      usesRuntime: true,
+      params: [{ name: 'field', kind: ['field', 'lambda'] }],
+      description: 'Sum of the field up to this row',
+    },
+  },
+};
+
+const compiled = compileExpression('RUNNINGSUM(amount)', options);
+compiled.result.evaluate({}, { rows: [{ amount: 1 }, { amount: 2 }], index: 1 }); // 3
+```
+
+See the [Custom Functions guide](https://taioncom.github.io/taion-expression/docs/guides/custom-functions).
+
 ## Security Features
 
 The expression evaluator includes several security features to ensure safe evaluation:

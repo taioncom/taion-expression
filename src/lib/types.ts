@@ -201,9 +201,13 @@ export type CompiledExpression = {
   /**
    * Evaluates the compiled expression with the given context
    * @param context The context object containing variables referenced in the expression
+   * @param runtime A value passed to custom functions with `usesRuntime` (never visible to the expression)
    * @returns The result of evaluating the expression
    */
-  readonly evaluate: (context: Record<string, unknown>) => unknown;
+  readonly evaluate: (
+    context: Record<string, unknown>,
+    runtime?: unknown,
+  ) => unknown;
 
   /**
    * Original source of the expression
@@ -217,16 +221,73 @@ export type CompiledExpression = {
 };
 
 /**
+ * How a parameter takes its argument: a `value` is evaluated as usual, a
+ * `field` is a context path given to the function as its text (`amount`,
+ * `order.total`), a `lambda` is an arrow function given as a callable
+ */
+export type ParamKind = 'value' | 'field' | 'lambda';
+
+/**
+ * A parameter of a custom function
+ */
+export type ParamSpec = {
+  /** Name shown in catalogs and error messages */
+  readonly name: string;
+  /** How the argument is taken; several kinds accept any of them. Default 'value' */
+  readonly kind?: ParamKind | readonly ParamKind[];
+  /** The argument may be left out (only trailing parameters) */
+  readonly optional?: boolean;
+  /** The last parameter takes any number of arguments */
+  readonly variadic?: boolean;
+  /** What the parameter is for */
+  readonly description?: string;
+};
+
+/**
+ * What a function with `usesRuntime` receives as its first argument
+ */
+export type FunctionCall = {
+  /** The context the expression is evaluated with */
+  readonly context: Readonly<Record<string, unknown>>;
+  /** The runtime value given to `evaluate` (never visible to the expression) */
+  readonly runtime: unknown;
+};
+
+/**
+ * A custom function with its signature and documentation
+ */
+export type FunctionDefinition = {
+  /** The implementation; with `usesRuntime` it is called as `fn(call, ...args)` */
+  readonly fn: (...args: readonly unknown[]) => unknown;
+  /** Parameters; when given, calls are checked against them at compile time */
+  readonly params?: readonly ParamSpec[];
+  /** What the function returns (free text: 'number', 'text', ...) */
+  readonly returns?: string;
+  /** What the function does */
+  readonly description?: string;
+  /** A group for catalogs ('Window', 'Text', ...) */
+  readonly category?: string;
+  /** Receive the context and the runtime value as the first argument */
+  readonly usesRuntime?: boolean;
+};
+
+/**
+ * A custom function: a plain function, or a definition with its signature
+ */
+export type CustomFunction =
+  | ((...args: readonly unknown[]) => unknown)
+  | FunctionDefinition;
+
+/**
  * Options for the expression evaluator
  */
 export type ExpressionOptions = {
   /**
-   * Custom functions that can be called from expressions
+   * Custom functions that can be called from expressions: plain functions,
+   * or definitions with parameters (checked at compile time), field and
+   * lambda arguments, runtime access and documentation
    */
-  readonly customFunctions?: Record<
-    string,
-    (...args: readonly unknown[]) => unknown
-  >;
+  readonly customFunctions?: Record<string, CustomFunction>;
 
   /**
    * Maximum execution time in milliseconds

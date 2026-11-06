@@ -74,6 +74,8 @@ export type EvaluatorContext = {
   readonly compiledDeniedProperties: readonly RegExp[];
   /** Calendar-day formatter for the `timeZone` option, if set */
   readonly dayFormat?: Intl.DateTimeFormat;
+  /** The value given to `evaluate` for custom functions with `usesRuntime` */
+  readonly runtime?: unknown;
 };
 
 // Build the full dotted property path from a member expression AST node.

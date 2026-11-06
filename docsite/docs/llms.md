@@ -49,7 +49,7 @@ if (compiled.success) {
 
 ```typescript
 type ExpressionOptions = {
-  customFunctions?: Record<string, (...args: unknown[]) => unknown>;
+  customFunctions?: Record<string, CustomFunction>; // function, or FunctionDefinition (below)
   timeout?: number;              // Default: 1000 (ms)
   maxCallStackDepth?: number;    // Default: 50
   maxComplexity?: number;        // Default: 100 (max AST nodes, checked at compile time)
@@ -171,6 +171,22 @@ evaluateExpression('greet(name)', { name: 'World' }, {
 ```
 
 Custom functions override built-ins with the same name. Functions can also be passed in the context object.
+
+A custom function can be a definition: `{ fn, params?, usesRuntime?, returns?, description?, category? }`.
+- `params: [{ name, kind?: 'value'|'field'|'lambda' | [...], optional?, variadic? }]` -- checked at compile time: `ARGUMENT_COUNT` (wrong number), `INVALID_ARGUMENT` (wrong kind, with line/column), also in untaken branches.
+- `kind: 'field'`: the argument must be a context path (`amount`, `order.total`); `fn` receives the path as a string; `analyzeExpression` lists it in `identifiers`; the path is checked against the property policy like a read (`PROPERTY_ACCESS_DENIED`).
+- `kind: 'lambda'`: the argument must be an arrow (allowed without `enableArrowFunctions`); `fn` receives a callable. A `'value'` param takes an arrow only with `enableArrowFunctions`.
+- `usesRuntime: true`: called as `fn({ context, runtime }, ...args)`; `runtime` is the second argument of `compiled.evaluate(context, runtime)` / fourth of `evaluateExpression`, never visible to the expression.
+
+```typescript
+customFunctions: {
+  RUNNINGSUM: { fn: ({ runtime }, f) => /* sum f over runtime.rows[0..index] */ 0,
+    usesRuntime: true, params: [{ name: 'field', kind: ['field', 'lambda'] }] },
+}
+// RUNNINGSUM(amount)   RUNNINGSUM(r => r.price * r.qty)
+```
+
+`describeFunctions(options)` lists callable functions: built-ins `{ name, source: 'builtin', category }` (higher-order only with `enableArrowFunctions`) and custom `{ name, source: 'custom', category?, description?, params?, returns? }`.
 
 ### Arrow Functions
 

@@ -40,6 +40,7 @@ const childNodes = (node: ExpressionNode): readonly ExpressionNode[] => {
 const checkFeature = (
   node: ExpressionNode,
   options: ExpressionOptions,
+  lambdas: ReadonlySet<ExpressionNode>,
 ): ExtendedError | null => {
   if (
     (node.type === 'ArrayLiteral' || node.type === 'ArrayIndex') &&
@@ -63,7 +64,11 @@ const checkFeature = (
       node.location,
     );
   }
-  if (node.type === 'ArrowFunction' && options.enableArrowFunctions !== true) {
+  if (
+    node.type === 'ArrowFunction' &&
+    options.enableArrowFunctions !== true &&
+    !lambdas.has(node)
+  ) {
     return createCompilationError(
       'Arrow functions are not allowed in the current context. Enable them with the enableArrowFunctions option.',
       'ARROW_FUNCTIONS_DISABLED',
@@ -76,12 +81,15 @@ const checkFeature = (
 
 /**
  * Validate a parsed AST against the options before evaluation: rejects disabled
- * features and enforces maxComplexity as a limit on the number of AST nodes.
+ * features (an arrow passed as a lambda argument of a custom function is
+ * allowed without enableArrowFunctions) and enforces maxComplexity as a limit
+ * on the number of AST nodes.
  * Walks the tree iteratively so deep trees don't exhaust the call stack.
  */
 export const validateAST = (
   ast: ExpressionNode,
   options: ExpressionOptions,
+  lambdas: ReadonlySet<ExpressionNode> = new Set(),
 ): ExtendedError | null => {
   const pending: ExpressionNode[] = [ast];
   let nodeCount = 0;
@@ -100,7 +108,7 @@ export const validateAST = (
       );
     }
 
-    const featureError = checkFeature(node, options);
+    const featureError = checkFeature(node, options, lambdas);
     if (featureError) return featureError;
 
     pending.push(...childNodes(node));

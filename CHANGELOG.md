@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.0
+
+### Added
+
+- Custom function definitions: a `customFunctions` entry can be `{ fn, params?, usesRuntime?, returns?, description?, category? }` besides a plain function
+  - `params` are checked at compile time: the number of arguments (`ARGUMENT_COUNT`) and each argument's kind (`INVALID_ARGUMENT`, with line and column), also in branches never evaluated
+  - A `field` parameter takes a context path (`amount`, `order.total`) and gives the function its text, checked against the property policy like a read; `analyzeExpression` lists it in `identifiers`
+  - A `lambda` parameter takes an arrow function as a callable, allowed without `enableArrowFunctions`
+  - `optional` and `variadic` parameters
+- Runtime values: `compiled.evaluate(context, runtime)` and `evaluateExpression(expr, context, options, runtime)` pass a value to definitions with `usesRuntime`, called as `fn({ context, runtime }, ...args)`. The expression itself cannot read it
+- `describeFunctions(options)`: the functions expressions can call, built-ins by category and custom definitions with their documentation, for editors and AI instructions
+- Exported types `CustomFunction`, `FunctionDefinition`, `ParamSpec`, `ParamKind`, `FunctionCall`, `FunctionDescription`
+
+Plain custom functions and expressions without definitions behave exactly as in 2.2.0.
+
 ## 2.2.0
 
 ### Added

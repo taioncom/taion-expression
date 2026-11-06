@@ -3,6 +3,7 @@ import {
   collectReferences,
   ExpressionReferences,
 } from './analyzer.js';
+import { checkCalls, lambdaArguments } from './custom-functions.js';
 import { isValidTimeZone } from './date-coercion.js';
 import { evaluateAST } from './evaluator.js';
 import { parse } from './parser.js';
@@ -323,14 +324,20 @@ const compileTokens = (
   }
 
   // Step 3: Check feature flags and complexity
-  const validationError = validateAST(ast, normalizedOptions);
+  const validationError = validateAST(
+    ast,
+    normalizedOptions,
+    lambdaArguments(ast, normalizedOptions),
+  );
   if (validationError) {
     return compilationFailure(validationError);
   }
 
   // Step 4: Collect references and check called names (strictFunctions)
   const references = collectReferences(ast, normalizedOptions);
-  const functionError = checkStrictFunctions(references, normalizedOptions);
+  const functionError =
+    checkStrictFunctions(references, normalizedOptions) ??
+    checkCalls(ast, normalizedOptions);
   if (functionError) {
     return compilationFailure(functionError);
   }
@@ -364,12 +371,14 @@ export const safeCompileExpression = (
  * @param expressionString The expression to evaluate
  * @param context The context object containing variables referenced in the expression
  * @param options Configuration options for the evaluator
+ * @param runtime A value passed to custom functions with `usesRuntime`
  * @returns The result of evaluating the expression
  */
 export const evaluateExpression = (
   expressionString: string,
   context: Record<string, unknown> = {},
   options: ExpressionOptions = {},
+  runtime?: unknown,
 ): EvaluateResult => {
   const compileResult = compileExpression(expressionString, options);
 
@@ -383,7 +392,7 @@ export const evaluateExpression = (
   }
 
   try {
-    const result = compileResult.result.evaluate(context);
+    const result = compileResult.result.evaluate(context, runtime);
     return {
       success: true,
       result,

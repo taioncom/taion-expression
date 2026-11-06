@@ -2,6 +2,7 @@ import {
   builtInFunctions,
   contextPassingFunctions,
 } from './functions/index.js';
+import { definitionOf, kindsOf, paramAt } from './custom-functions.js';
 import { createDayFormat, dateOperands } from './date-coercion.js';
 import { resolveLibraryFunction } from './function-resolver.js';
 import {
@@ -30,6 +31,7 @@ import {
   ExpressionNode,
   ExpressionOptions,
   ExtendedError,
+  FunctionDefinition,
   IdentifierNode,
   LiteralNode,
   MemberExpressionNode,
@@ -273,7 +275,10 @@ const evaluateCallExpression = (
 
     // Custom functions take precedence over built-ins with the same name
     if (resolved?.source === 'custom') {
-      func = customFunctions[resolved.name];
+      const entry = customFunctions[resolved.name];
+      return entry === undefined
+        ? null
+        : callCustom(definitionOf(entry), node, updatedContext);
     } else if (resolved?.source === 'builtin') {
       const builtin = builtInFunctions[resolved.name] as (
         ...args: readonly unknown[]
@@ -298,6 +303,65 @@ const evaluateCallExpression = (
 
   try {
     return func(...args);
+  } catch (_e) {
+    if (_e instanceof Error && _e.name === 'CompilationError') throw _e;
+    return null;
+  }
+};
+
+/**
+ * Check a field argument's path against the property policy as reading it
+ * would: every segment for prototype vectors and denied patterns, the last
+ * one for the allowlist. A path starting at an arrow parameter skips that
+ * parameter, like reading it does.
+ */
+const checkFieldPath = (path: string, context: EvaluatorContext): void => {
+  const segments = path.split('.');
+  segments.forEach((segment, i) => {
+    if (i === 0 && hasOwn(context.localVariables, segment)) return;
+    const fullPath = segments.slice(0, i + 1).join('.');
+    const intermediate = i < segments.length - 1;
+    if (!isPropertyAccessAllowed(segment, fullPath, context, intermediate)) {
+      throw denyAccess(segment);
+    }
+  });
+};
+
+/**
+ * Call a custom function: a field argument is given as its context path
+ * (checked against the property policy), an arrow passed to a lambda
+ * parameter as a callable (allowed without enableArrowFunctions), and a
+ * function with `usesRuntime` gets the context and the runtime value first
+ */
+const callCustom = (
+  definition: FunctionDefinition,
+  node: CallExpressionNode,
+  context: EvaluatorContext,
+): unknown => {
+  const args = node.params.map((param, i) => {
+    const kinds = kindsOf(paramAt(definition.params, i));
+    if (
+      kinds.includes('field') &&
+      (param.type === 'Identifier' || param.type === 'MemberExpression')
+    ) {
+      const path = getPropertyPath(param);
+      if (path !== null) {
+        checkFieldPath(path, context);
+        return path;
+      }
+    }
+    if (kinds.includes('lambda') && param.type === 'ArrowFunction') {
+      return evaluateArrowFunction(param, context, true);
+    }
+    return evaluateNode(param, context);
+  });
+  try {
+    return definition.usesRuntime
+      ? definition.fn(
+          { context: context.rootContext, runtime: context.runtime },
+          ...args,
+        )
+      : definition.fn(...args);
   } catch (_e) {
     if (_e instanceof Error && _e.name === 'CompilationError') throw _e;
     return null;
@@ -408,12 +472,14 @@ const evaluateTemplateLiteral = (
   return parts.join('');
 };
 
-// Evaluate arrow function
+// Evaluate arrow function. `lambda` marks an arrow passed to a lambda
+// parameter of a custom function, allowed without enableArrowFunctions.
 const evaluateArrowFunction = (
   node: ArrowFunctionNode,
   context: EvaluatorContext,
+  lambda = false,
 ): unknown => {
-  if (context.options.enableArrowFunctions !== true) {
+  if (context.options.enableArrowFunctions !== true && !lambda) {
     throw createCompilationError(
       'Arrow functions are not allowed in the current context. Enable them with the enableArrowFunctions option.',
       'ARROW_FUNCTIONS_DISABLED',
@@ -523,7 +589,10 @@ export const evaluateAST = (
     ? createDayFormat(options.timeZone)
     : undefined;
 
-  const evaluate = (context: Record<string, unknown> = {}): unknown => {
+  const evaluate = (
+    context: Record<string, unknown> = {},
+    runtime?: unknown,
+  ): unknown => {
     const evaluatorContext: EvaluatorContext = {
       options,
       securityContext: createSecurityContext(),
@@ -532,6 +601,7 @@ export const evaluateAST = (
       compiledAllowedProperties,
       compiledDeniedProperties,
       dayFormat,
+      runtime,
     };
 
     try {

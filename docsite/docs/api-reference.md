@@ -14,7 +14,8 @@ Evaluates an expression string with a context and returns a result.
 function evaluateExpression(
   expressionString: string,
   context?: Record<string, unknown>,
-  options?: ExpressionOptions
+  options?: ExpressionOptions,
+  runtime?: unknown
 ): EvaluateResult;
 ```
 
@@ -22,6 +23,7 @@ function evaluateExpression(
 - `expressionString` -- the expression to evaluate
 - `context` -- object whose properties become variables (default: `{}`)
 - `options` -- evaluation options (default: `{}`)
+- `runtime` -- a value given to custom functions with `usesRuntime`, never visible to the expression
 
 **Returns:** `EvaluateResult` -- either `{ success: true, result }` or `{ success: false, error, errorType, errorCode }`
 
@@ -99,13 +101,61 @@ function analyzeExpression(
 
 ---
 
+### describeFunctions
+
+```typescript
+function describeFunctions(options?: ExpressionOptions): readonly FunctionDescription[];
+
+type FunctionDescription = {
+  name: string;
+  source: 'builtin' | 'custom';
+  category?: string;      // built-ins: 'string', 'math', 'date', ...
+  description?: string;   // custom definitions
+  params?: readonly ParamSpec[];
+  returns?: string;
+};
+```
+
+The functions expressions can call with these options. See [Custom Functions](./guides/custom-functions.md#listing-functions).
+
+---
+
 ## Types
+
+### CustomFunction
+
+```typescript
+type CustomFunction = ((...args: readonly unknown[]) => unknown) | FunctionDefinition;
+
+type FunctionDefinition = {
+  fn: (...args: readonly unknown[]) => unknown; // with usesRuntime: fn(call: FunctionCall, ...args)
+  params?: readonly ParamSpec[];  // checked at compile time when given
+  returns?: string;
+  description?: string;
+  category?: string;
+  usesRuntime?: boolean;
+};
+
+type ParamSpec = {
+  name: string;
+  kind?: ParamKind | readonly ParamKind[]; // default 'value'
+  optional?: boolean;
+  variadic?: boolean;
+  description?: string;
+};
+
+type ParamKind = 'value' | 'field' | 'lambda';
+
+type FunctionCall = { context: Readonly<Record<string, unknown>>; runtime: unknown };
+```
+
+See [Custom Functions](./guides/custom-functions.md#function-definitions).
 
 ### ExpressionOptions
 
 ```typescript
 type ExpressionOptions = {
-  customFunctions?: Record<string, (...args: readonly unknown[]) => unknown>;
+  customFunctions?: Record<string, CustomFunction>; // a function or a FunctionDefinition
   timeout?: number;                    // default: 1000
   maxCallStackDepth?: number;          // default: 50
   maxComplexity?: number;              // default: 100 (AST nodes, checked at compile time)
@@ -143,13 +193,13 @@ type AnalyzeResult =
 
 ```typescript
 type CompiledExpression = {
-  evaluate: (context: Record<string, unknown>) => unknown;
+  evaluate: (context: Record<string, unknown>, runtime?: unknown) => unknown;
   source: string;
   compiledCode: string;
 };
 ```
 
-`evaluate()` throws on runtime errors (the error carries a `code`). Use `evaluateExpression` if you want a result object instead.
+`evaluate()` throws on runtime errors (the error carries a `code`). `runtime` is given to custom functions with `usesRuntime`. Use `evaluateExpression` if you want a result object instead.
 
 ### EvaluateResult
 
