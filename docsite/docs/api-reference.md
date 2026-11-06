@@ -101,6 +101,26 @@ function analyzeExpression(
 
 ---
 
+### emitExpression
+
+```typescript
+function emitExpression<T>(
+  expressionString: string,
+  emitter: Emitter<T>,
+  options?: ExpressionOptions
+): EmitResult<T>; // { success: true, result: T, identifiers, functions } | CompileFailure
+
+function parseExpression(expressionString: string, options?: ExpressionOptions):
+  | { success: true; ast: ExpressionNode; options: ExpressionOptions; identifiers: readonly string[]; functions: readonly string[] }
+  | CompileFailure;
+
+function createEmitError(message: string, node: ExpressionNode, code?: string): ExtendedError;
+```
+
+Turns an expression into another target (SQL, ...) through an emitter's methods (`literal`, `identifier`, `unary`, `binary`, `conditional`, `call`, optional `array`, `index`, `template`). See [Emitting to Other Targets](./guides/emitters.md).
+
+---
+
 ### describeFunctions
 
 ```typescript

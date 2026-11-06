@@ -2,6 +2,7 @@
 export {
   analyzeExpression,
   compileExpression,
+  parseExpression,
   safeCompileExpression,
   evaluateExpression,
   safeEvaluateExpression,
@@ -15,6 +16,18 @@ export {
   AnalyzeSuccess,
   AnalyzeResult,
 } from './lib/taion-expression.js';
+
+// Emitting to other targets (SQL, ...)
+export {
+  createEmitError,
+  emitExpression,
+  EmitArg,
+  EmitBinaryOperator,
+  Emitter,
+  EmitResult,
+  EmitSuccess,
+  EmitUnaryOperator,
+} from './lib/emitter.js';
 
 // Function catalog
 export { describeFunctions, FunctionDescription } from './lib/catalog.js';

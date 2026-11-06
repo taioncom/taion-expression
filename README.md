@@ -287,6 +287,10 @@ compiled.result.evaluate({}, { rows: [{ amount: 1 }, { amount: 2 }], index: 1 })
 
 See the [Custom Functions guide](https://taioncom.github.io/taion-expression/docs/guides/custom-functions).
 
+#### Emitting to Other Targets
+
+`emitExpression(expr, emitter, options)` validates an expression as for evaluation and walks it bottom-up through your emitter (one method per kind of node), for example to translate it into SQL. The target stays in your code; your function mapping is the allowlist. See the [Emitters guide](https://taioncom.github.io/taion-expression/docs/guides/emitters).
+
 ## Security Features
 
 The expression evaluator includes several security features to ensure safe evaluation:

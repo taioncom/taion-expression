@@ -201,6 +201,38 @@ export const compileExpression = (
 };
 
 /**
+ * Parse and validate an expression exactly as compilation does, without
+ * setting up evaluation: the AST and its references, or the failure. For
+ * other targets than the interpreter (`emitExpression`).
+ */
+export const parseExpression = (
+  expressionString: string,
+  options: ExpressionOptions = {},
+):
+  | {
+      readonly success: true;
+      readonly ast: ExpressionNode;
+      readonly options: ExpressionOptions;
+      readonly identifiers: readonly string[];
+      readonly functions: readonly string[];
+    }
+  | CompileFailure => {
+  const normalizedOptions = normalizeOptions(options);
+  const validated = validateExpressionSource(
+    expressionString,
+    normalizedOptions,
+  );
+  if (!validated.success) return validated;
+  return {
+    success: true,
+    ast: validated.ast,
+    options: normalizedOptions,
+    identifiers: validated.references.identifiers,
+    functions: validated.references.functions,
+  };
+};
+
+/**
  * Analyze an expression without evaluating it: parse and validate it exactly
  * as compilation does (so limits, feature flags and strictFunctions apply)
  * and list the context paths it reads and the functions it calls.
